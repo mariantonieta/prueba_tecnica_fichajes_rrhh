@@ -9,7 +9,7 @@ import logging
 
 app = FastAPI(title="RRHH API")
 
-FRONTEND_URL = os.getenv("VITE_API_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 app.add_middleware(
     CORSMiddleware,

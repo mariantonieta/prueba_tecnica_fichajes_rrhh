@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["npx", "vite", "--host", "0.0.0.0"]
+CMD ["npx", "vite", "--host", "0.0.0.0", "npm", "run", "dev"]

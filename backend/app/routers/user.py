@@ -7,6 +7,20 @@ from app.schemas.enum import UserRole
 from app.core.exceptions import forbidden, not_found
 
 router = APIRouter(prefix="/users", tags=["users"])
+@router.get("/{user_id}")
+def get_user(
+    user_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise not_found("User not found")
+
+    if current_user.role.name != UserRole.RRHH.value and current_user.id != user.id:
+        raise forbidden("Not authorized to view this user")
+
+    return user
 
 @router.put("/{user_id}")
 def update_user(user_id: str, new_data: dict, db:Session = Depends(get_db), current_user: User = Depends(get_current_user)):

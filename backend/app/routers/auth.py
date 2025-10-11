@@ -29,7 +29,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise unauthorized("Incorrect username or password")
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": str(user.id), "role": user.role_id},
+        data={"sub": str(user.id), "role": user.role.name},
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}

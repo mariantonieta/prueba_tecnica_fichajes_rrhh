@@ -33,7 +33,7 @@ class UserOut(BaseModel):
     full_name: Optional[str]
     is_active: bool
     role_id: UUID
-    role: UserRole
+    role: str
     create_date: datetime
     update_date: Optional[datetime]
 
