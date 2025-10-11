@@ -1,0 +1,43 @@
+# ------------------------
+# Python
+# ------------------------
+**/__pycache__/
+**/*.py[cod]
+*.pyc
+*.pyo
+*.pyd
+.venv/
+backend/.venv/
+
+# ------------------------
+# Env files
+# ------------------------
+.env
+.env.local
+.env.*.local
+# Mantener solo .env.example
+!.env.example
+
+# ------------------------
+# Node / Frontend
+# ------------------------
+node_modules/
+dist/
+build/
+*.log
+
+# ------------------------
+# Docker
+# ------------------------
+docker-compose.override.yml
+*.log
+*.tmp
+**/tmp/
+
+# ------------------------
+# OS / IDE
+# ------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
