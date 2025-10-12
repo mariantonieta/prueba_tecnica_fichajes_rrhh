@@ -1,5 +1,5 @@
 from fastapi import HTTPException, status
-from typing import Any
+
 
 def bad_request(detail: str = "Bad request") -> HTTPException:
     return HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=detail)

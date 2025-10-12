@@ -1,0 +1,90 @@
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime
+
+from app.database import get_db
+from app.core.deps import get_current_user
+from app.models.user import User
+from app.schemas.time_tracking import TimeTrackingCreate, TimeTrackingOut, TimeTrackingSearchOut
+from app.crud import time_tracking
+from app.schemas.enum import UserRole
+from app.core.exceptions import forbidden, bad_request, DomainError
+
+router = APIRouter(prefix="/time-tracking", tags=["Time Tracking"])
+
+@router.post("/", response_model=TimeTrackingOut)
+def create_time_record(
+    record: TimeTrackingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    new_record = time_tracking.create_time_record(db, user_id=current_user.id, record=record)
+    return new_record
+
+@router.get("/", response_model=List[TimeTrackingOut])
+def get_time_records(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role.name == UserRole.RRHH:
+        return db.query(time_tracking.TimeTracking).all()
+    
+    return time_tracking.get_time_records_by_user(db, user_id=current_user.id)
+
+@router.get("/user/{user_id}", response_model=List[TimeTrackingSearchOut])
+def get_time_records_by_user(
+    user_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role.name != UserRole.RRHH:
+        raise forbidden(
+            f"Acceso denegado. Se requiere rol {UserRole.RRHH}, pero tienes {current_user.role.name}"
+        )
+
+    records = time_tracking.get_time_records_by_user_with_user_info(db, user_id=user_id)
+    if not records:
+        return []
+
+    return records
+
+@router.get("/search", response_model=List[TimeTrackingSearchOut])
+def search_time_records(
+    user_id: Optional[UUID] = Query(None),
+    user_full_name: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.role.name != UserRole.RRHH:
+        raise forbidden("Not authorized")
+
+    return time_tracking.search_time_records_with_user_info(
+        db,
+        user_id=user_id,
+        user_full_name=user_full_name
+    )
+
+@router.get("/weekly")
+def weekly_hours(
+    week_start: datetime = Query(..., description="Inicio de la semana, ej: 2025-10-06"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return time_tracking.get_weekly_hours(db, current_user.id, week_start)
+    except DomainError as e:
+        raise bad_request(e.message)
+
+@router.get("/monthly")
+def monthly_hours(
+    year: int = Query(..., description="Año, ej: 2025"),
+    month: int = Query(..., description="Mes numérico, ej: 10"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    try:
+        return time_tracking.get_monthly_hours(db, current_user.id, year, month)
+    except DomainError as e:
+        raise bad_request(e.message)

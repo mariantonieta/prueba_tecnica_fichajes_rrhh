@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,6 +23,26 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function FormField({
+  id,
+  label,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+    </div>
+  );
+}
+
 export function LoginForm() {
   const { toast } = useToast();
   const { login } = useAuth();
@@ -37,26 +57,21 @@ export function LoginForm() {
   const onSubmit = async (data: FormData) => {
     try {
       const result = await authService.login(data);
-      console.log("Login result:", result);
 
-      if (!result?.access_token) {
+      if (!result?.access_token)
         throw new Error("No access token received from backend");
-      }
 
       login(result.access_token);
 
       const decoded: DecodedToken = jwtDecode(result.access_token);
-      console.log("Decoded token:", decoded);
 
       toast({
         title: "Welcome!",
-        description: "You have successfully logged in.",
+        description: `Logged in as "${decoded.role}"`,
       });
 
-      console.log("Redirecting to /home...");
       navigate("/home");
     } catch (error) {
-      console.error("Login error:", error);
       toast({
         title: "Error",
         description:
@@ -70,33 +85,30 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
+      <FormField
+        id="usernameOrEmail"
+        label="Email or Username"
+        error={errors.usernameOrEmail?.message}
+      >
         <Input
           id="usernameOrEmail"
-          type="text"
           placeholder="maria or your@email.com"
           {...register("usernameOrEmail")}
         />
-        {errors.usernameOrEmail && (
-          <p className="text-sm text-red-500">
-            {errors.usernameOrEmail.message}
-          </p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+      <FormField
+        id="password"
+        label="Password"
+        error={errors.password?.message}
+      >
         <Input
           id="password"
           type="password"
           placeholder="••••••••"
           {...register("password")}
         />
-        {errors.password && (
-          <p className="text-sm text-red-500">{errors.password.message}</p>
-        )}
-      </div>
+      </FormField>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Signing in..." : "Sign In"}
@@ -104,16 +116,10 @@ export function LoginForm() {
 
       <div className="text-center text-sm text-gray-500">
         <p>
-          Demo: use{" "}
-          <span className="font-medium text-gray-700">hr@company.com</span> for
-          HR
-        </p>
-        <p>
-          or{" "}
-          <span className="font-medium text-gray-700">
-            employee@company.com
-          </span>{" "}
-          for Employee
+          No tienes cuenta?{" "}
+          <Link to="/register" className="font-medium text-gray-700 underline">
+            Regístrate
+          </Link>
         </p>
       </div>
     </form>

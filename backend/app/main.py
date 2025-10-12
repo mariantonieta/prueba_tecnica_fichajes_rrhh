@@ -2,7 +2,7 @@ from urllib.request import Request
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, user
+from app.routers import auth, user, time_tracking, time_off_request, time_adjustment
 from app.core.exceptions import DomainError
 import os 
 import logging
@@ -44,3 +44,6 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(auth.router)
 app.include_router(user.router)
+app.include_router(time_tracking.router)
+app.include_router(time_off_request.router)
+app.include_router(time_adjustment.router)

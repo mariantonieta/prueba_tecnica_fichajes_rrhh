@@ -1,56 +1,47 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.core.deps import get_current_user, require_role
+from app.core.deps import get_current_user
 from app.models.user import User
-from app.schemas.enum import UserRole
-from app.core.exceptions import forbidden, not_found
+from app.schemas.user import UserOut, UserUpdate
+from app.crud import user as crud_user
+from app.core.exceptions import not_found
+from uuid import UUID
 
 router = APIRouter(prefix="/users", tags=["users"])
-@router.get("/{user_id}")
-def get_user(
-    user_id: str,
+
+@router.get("/", response_model=list[UserOut])
+def get_all_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return crud_user.get_all_users_out(db)
+
+@router.get("/me", response_model=UserOut)
+def get_current_user_endpoint(current_user: User = Depends(get_current_user)):
+    return crud_user.to_user_out(current_user)
+
+@router.get("/{user_id}", response_model=UserOut)
+def get_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    user_out = crud_user.get_user_out_by_id(db, user_id)
+    return user_out
+@router.patch("/{user_id}", response_model=UserOut)
+def update_user(
+    user_id: UUID,
+    user_update: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise not_found("User not found")
+        raise not_found(status_code=404, detail="User not found")
 
-    if current_user.role.name != UserRole.RRHH.value and current_user.id != user.id:
-        raise forbidden("Not authorized to view this user")
+    # Actualizamos solo los campos que vienen
+    for field, value in user_update.dict(exclude_unset=True).items():
+        setattr(user, field, value)
 
+    db.commit()
+    db.refresh(user)
     return user
 
-@router.put("/{user_id}")
-def update_user(user_id: str, new_data: dict, db:Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    user_to_update = db.query(User).filter(User.id == user_id).first()
-    if not user_to_update:
-        raise not_found("User not found")
-    
-    if current_user.role.name != UserRole.RRHH.value and current_user.id != user_to_update.id:
-        raise forbidden("Not authorized")
-
-    for key, value in new_data.items():
-        if hasattr(user_to_update, key):
-            setattr(user_to_update, key, value)
-    db.commit()
-    db.refresh(user_to_update)
-    return {"message": "User updated"}
-
 @router.delete("/{user_id}")
-def delete_user(
-    user_id: str,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    user_to_delete = db.query(User).filter(User.id == user_id).first()
-    if not user_to_delete:
-        raise not_found("User not found")
-
-    if current_user.role.name != UserRole.RRHH.value and current_user.id != user_to_delete.id:
-        raise forbidden("Not authorized to delete this user")
-
-    db.delete(user_to_delete)
-    db.commit()
+def delete_user(user_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    crud_user.delete_user(db, user_id, current_user)
     return {"message": "User deleted"}

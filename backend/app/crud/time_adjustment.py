@@ -1,0 +1,56 @@
+from sqlalchemy.orm import Session
+from uuid import UUID
+from app.models.time_adjustment import TimeAdjustment
+from app.schemas.time_adjustment import TimeAjustmentCreate
+from app.models.time_tracking import TimeTracking
+from app.schemas.enum import AdjustmentStatusEnum  
+
+def create_time_adjustment(db: Session, user_id: UUID, adjustment: TimeAjustmentCreate):
+    new_adjustment = TimeAdjustment(
+        user_id=user_id,
+        time_record_id=adjustment.time_record_id,
+        adjusted_timestamp=adjustment.adjusted_timestamp,
+        adjusted_type=adjustment.adjusted_type,
+        reason=adjustment.reason,
+        status=AdjustmentStatusEnum.PENDING 
+    )
+    db.add(new_adjustment)
+    db.commit()
+    db.refresh(new_adjustment)
+    return new_adjustment
+
+
+def get_adjustments_by_user(db: Session, user_id: UUID):
+    return db.query(TimeAdjustment).filter(TimeAdjustment.user_id == user_id).all()
+
+
+def get_adjustment_by_id(db: Session, adjustment_id: UUID):
+    return db.query(TimeAdjustment).filter(TimeAdjustment.id == adjustment_id).first()
+
+def review_adjustment(db: Session, adjustment_id: UUID, reviewer_id: UUID, status: AdjustmentStatusEnum, comment: str = None):
+    adjustment = get_adjustment_by_id(db, adjustment_id)
+    if not adjustment:
+        return None
+
+    adjustment.status = status
+    adjustment.reviewed_by = reviewer_id
+    adjustment.review_comment = comment
+
+    if status == AdjustmentStatusEnum.APPROVED and adjustment.time_record_id:
+        time_record = db.query(TimeTracking).filter(TimeTracking.id == adjustment.time_record_id).first()
+        if time_record:
+            # Actualizamos el timestamp
+            time_record.timestamp = adjustment.adjusted_timestamp
+            
+            # Mapeo del tipo de ajuste a record_type válido
+            if adjustment.adjusted_type in ["ENTRY_CORRECTION", "MANUAL_ENTRY"]:
+                time_record.record_type = "CHECK_IN"
+            elif adjustment.adjusted_type == "EXIT_CORRECTION":
+                time_record.record_type = "CHECK_OUT"
+            else:
+                # Si es OTHER o un valor que no se pueda mapear, lo dejamos como estaba
+                pass
+
+    db.commit()
+    db.refresh(adjustment)
+    return adjustment

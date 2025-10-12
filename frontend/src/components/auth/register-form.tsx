@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,9 +16,7 @@ const schema = z
     fullname: z.string().min(2, "Full name must be at least 2 characters long"),
     password: z.string().min(6, "Password must be at least 6 characters long"),
     confirm_password: z.string().min(6, "Please confirm your password"),
-    role: z.enum(["EMPLOYEE", "HR", "ADMIN"], {
-      required_error: "Role is required",
-    }),
+    role: z.enum(["EMPLOYEE", "RRHH"], { required_error: "Role is required" }),
   })
   .refine((data) => data.password === data.confirm_password, {
     path: ["confirm_password"],
@@ -26,6 +24,26 @@ const schema = z
   });
 
 type FormData = z.infer<typeof schema>;
+
+function FormField({
+  id,
+  label,
+  error,
+  children,
+}: {
+  id: string;
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor={id}>{label}</Label>
+      {children}
+      {error && <p className="text-sm text-red-500">{error}</p>}
+    </div>
+  );
+}
 
 export function RegisterForm() {
   const { toast } = useToast();
@@ -59,37 +77,32 @@ export function RegisterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
+      <FormField
+        id="username"
+        label="Username"
+        error={errors.username?.message}
+      >
         <Input id="username" placeholder="johndoe" {...register("username")} />
-        {errors.username && (
-          <p className="text-sm text-red-500">{errors.username.message}</p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="fullname">Full Name</Label>
+      <FormField
+        id="fullname"
+        label="Full Name"
+        error={errors.fullname?.message}
+      >
         <Input id="fullname" placeholder="John Doe" {...register("fullname")} />
-        {errors.fullname && (
-          <p className="text-sm text-red-500">{errors.fullname.message}</p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
+      <FormField id="email" label="Email Address" error={errors.email?.message}>
         <Input
           id="email"
           type="email"
           placeholder="you@company.com"
           {...register("email")}
         />
-        {errors.email && (
-          <p className="text-sm text-red-500">{errors.email.message}</p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="role">Role</Label>
+      <FormField id="role" label="Role" error={errors.role?.message}>
         <Select
           id="role"
           {...register("role")}
@@ -98,42 +111,46 @@ export function RegisterForm() {
           <SelectItem value="EMPLOYEE">Employee</SelectItem>
           <SelectItem value="RRHH">RRHH</SelectItem>
         </Select>
-        {errors.role && (
-          <p className="text-sm text-red-500">{errors.role.message}</p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
+      <FormField
+        id="password"
+        label="Password"
+        error={errors.password?.message}
+      >
         <Input
           id="password"
           type="password"
           placeholder="••••••••"
           {...register("password")}
         />
-        {errors.password && (
-          <p className="text-sm text-red-500">{errors.password.message}</p>
-        )}
-      </div>
+      </FormField>
 
-      <div className="space-y-2">
-        <Label htmlFor="confirm_password">Confirm Password</Label>
+      <FormField
+        id="confirm_password"
+        label="Confirm Password"
+        error={errors.confirm_password?.message}
+      >
         <Input
           id="confirm_password"
           type="password"
           placeholder="••••••••"
           {...register("confirm_password")}
         />
-        {errors.confirm_password && (
-          <p className="text-sm text-red-500">
-            {errors.confirm_password.message}
-          </p>
-        )}
-      </div>
+      </FormField>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Creating account..." : "Create Account"}
       </Button>
+
+      <div className="text-center text-sm text-gray-500">
+        <p>
+          Ya tienes cuenta?{" "}
+          <Link to="/login" className="font-medium text-gray-700 underline">
+            Inicia Sesión
+          </Link>
+        </p>
+      </div>
     </form>
   );
 }

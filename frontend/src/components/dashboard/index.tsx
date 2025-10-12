@@ -1,0 +1,176 @@
+import React, { useState, useEffect, ReactNode } from "react";
+import { Fingerprint } from "lucide-react";
+import { Button } from "../ui/button";
+import { StatsCard } from "./stats-card";
+import {
+  TimeTrackingTable,
+  type TimeRecord,
+} from "../employeeTimeTracking/time-tracking-table";
+import { useToast } from "../../hooks/use-toast";
+import { timeTrackingService } from "../../services/timeTrackingServices";
+
+export interface DashboardBaseProps {
+  userName: string;
+  userInitials?: string;
+  role: "EMPLOYEE" | "RRHH";
+  userId: string;
+  currentUserId: string;
+  children?: ReactNode;
+}
+
+export function DashboardBase({
+  userName,
+  userId,
+  children,
+}: DashboardBaseProps) {
+  const { toast } = useToast();
+
+  const [timestamps, setTimestamps] = useState<TimeRecord[]>([]);
+  const [weeklyHours, setWeeklyHours] = useState(0);
+  const [weeklyLimit, setWeeklyLimit] = useState(40);
+  const [monthlyHours, setMonthlyHours] = useState(0);
+  const [monthlyLimit, setMonthlyLimit] = useState(160);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const getNextRecordType = (): "CHECK_IN" | "CHECK_OUT" =>
+    timestamps.length % 2 === 0 ? "CHECK_IN" : "CHECK_OUT";
+
+  const getNextActionLabel = (): string =>
+    getNextRecordType() === "CHECK_IN" ? "Check In" : "Check Out";
+
+  const getMondayOfWeek = (date: Date): Date => {
+    const monday = new Date(date);
+    monday.setDate(date.getDate() - date.getDay() + 1);
+    return new Date(
+      Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate())
+    );
+  };
+
+  const fetchWeeklyHours = async () => {
+    const mondayUTC = getMondayOfWeek(new Date());
+    const weekly = await timeTrackingService.getWeeklyHours(
+      mondayUTC.toISOString()
+    );
+    setWeeklyHours(weekly.hours_worked);
+    setWeeklyLimit(weekly.weekly_limit);
+  };
+
+  const fetchMonthlyHours = async () => {
+    const today = new Date();
+    const monthly = await timeTrackingService.getMonthlyHours(
+      today.getFullYear(),
+      today.getMonth() + 1
+    );
+    setMonthlyHours(monthly.hours_worked);
+    setMonthlyLimit(monthly.monthly_limit);
+  };
+
+  const fetchUserRecords = async () => {
+    const allRecords = await timeTrackingService.list();
+    const userRecords = allRecords.filter((r) => r.user_id === userId);
+    setTimestamps(
+      userRecords.map((r) => ({
+        id: r.id,
+        timestamp: r.timestamp,
+        record_type: r.record_type,
+        description: r.description || "",
+      }))
+    );
+  };
+
+  const fetchData = async () => {
+    try {
+      await Promise.all([
+        fetchWeeklyHours(),
+        fetchMonthlyHours(),
+        fetchUserRecords(),
+      ]);
+    } catch (error) {
+      console.error("Error cargando datos del dashboard:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [userId, refreshTrigger]);
+
+  const handleClock = async () => {
+    try {
+      const recordType = getNextRecordType();
+      const now = new Date();
+
+      await timeTrackingService.create({
+        record_type: recordType,
+        description: `Fichaje ${
+          recordType === "CHECK_IN" ? "de entrada" : "de salida"
+        } a las ${now.toLocaleTimeString()}`,
+      });
+
+      toast({
+        title: "Fichaje registrado",
+        description: `Tipo: ${recordType} - Hora: ${now.toLocaleTimeString()}`,
+        variant: "default",
+      });
+
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error: any) {
+      toast({
+        title: "Error al registrar fichaje",
+        description: error.message || "Intenta nuevamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <main className="min-h-screen bg-gray-50 mx-auto max-w-7xl px-6 py-8 space-y-12">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+        <h1 className="text-3xl font-bold text-gray-900">
+          Bienvenido/a, {userName}
+        </h1>
+        <Button
+          size="lg"
+          className={`flex items-center gap-2 ${
+            getNextRecordType() === "CHECK_IN"
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-red-600 hover:bg-red-700"
+          }`}
+          onClick={handleClock}
+        >
+          <Fingerprint className="h-5 w-5" />
+          {getNextActionLabel()}
+        </Button>
+      </div>
+
+      <section>
+        <h2 className="mb-6 text-2xl font-bold text-gray-900">
+          Resumen de Horas
+        </h2>
+        <div className="grid gap-6 md:grid-cols-2">
+          <StatsCard
+            label="Horas trabajadas (Semana)"
+            value={`${weeklyHours.toFixed(1)}h`}
+            maxValue={`${weeklyLimit}h`}
+          />
+          <StatsCard
+            label="Horas trabajadas (Mes)"
+            value={`${monthlyHours.toFixed(1)}h`}
+            maxValue={`${monthlyLimit}h`}
+          />
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          Fichajes Registrados
+        </h3>
+        <TimeTrackingTable
+          records={timestamps}
+          refreshTrigger={refreshTrigger}
+        />
+      </section>
+
+      {children && <section>{children}</section>}
+    </main>
+  );
+}

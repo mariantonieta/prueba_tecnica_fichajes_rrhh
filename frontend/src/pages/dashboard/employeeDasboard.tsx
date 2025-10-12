@@ -1,40 +1,54 @@
-import React from "react";
-import { DashboardBase } from "../../components/dasboard-base";
-import { type Request } from "../../components/ui/table/RequestTable";
-
-const mockRequests: Request[] = [
-  {
-    id: "1",
-    type: "Corrección de fichaje",
-    date: "2024-07-20",
-    status: "approved",
-    statusLabel: "Aprobado",
-  },
-  {
-    id: "2",
-    type: "Vacaciones",
-    date: "2024-08-15 - 2024-08-22",
-    status: "pending",
-    statusLabel: "Pendiente",
-  },
-  {
-    id: "3",
-    type: "Ausencia médica",
-    date: "2024-07-10",
-    status: "rejected",
-    statusLabel: "Rechazado",
-  },
-  {
-    id: "4",
-    type: "Teletrabajo",
-    date: "2024-07-25",
-    status: "approved",
-    statusLabel: "Aprobado",
-  },
-];
+import React, { useEffect, useState } from "react";
+import { DashboardBase } from "../../components/dashboard";
+import { userService } from "../../services/users/userService";
+import { useToast } from "../../hooks/use-toast";
+import { Loader } from "../../components/ui/loader";
+import { UserOut } from "../../services/users/userTypes";
 
 export default function EmployeeDashboard() {
+  const { toast } = useToast();
+  const [user, setUser] = useState<UserOut | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const data = await userService.getCurrentUser();
+        setUser(data);
+      } catch (error: any) {
+        toast({
+          title: "Error al cargar usuario",
+          description: error.message || "No se pudo obtener el usuario actual.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCurrentUser();
+  }, []);
+
+  if (loading)
+    return (
+      <div className="flex h-screen items-center justify-center text-gray-600">
+        <Loader /> Cargando dashboard...
+      </div>
+    );
+
+  if (!user)
+    return (
+      <div className="flex h-screen items-center justify-center text-red-600">
+        No se pudo cargar el usuario
+      </div>
+    );
+
   return (
-    <DashboardBase userName="Elena" role="EMPLOYEE" requests={mockRequests} />
+    <DashboardBase
+      userName={user.full_name || user.username}
+      role={user.role}
+      userId={user.id}
+      currentUserId={user.id}
+    />
   );
 }

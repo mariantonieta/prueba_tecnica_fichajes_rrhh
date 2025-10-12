@@ -44,7 +44,7 @@ export const authService = {
         return { access_token: response.data.access_token, role: decoded.role };
     },
 
-    logout() {
+    logout(): void {
         if (typeof window !== "undefined") {
             localStorage.removeItem("access_token");
         }

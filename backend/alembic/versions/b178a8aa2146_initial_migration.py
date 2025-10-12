@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: f8fd11a1b7dd
+Revision ID: b178a8aa2146
 Revises: 
-Create Date: 2025-10-11 10:11:03.582152
+Create Date: 2025-10-12 17:28:30.800419
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'f8fd11a1b7dd'
+revision: str = 'b178a8aa2146'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -125,7 +125,7 @@ def upgrade() -> None:
     sa.Column('time_record_id', sa.UUID(), nullable=True),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('adjusted_timestamp', sa.DateTime(timezone=True), nullable=True),
-    sa.Column('adjusted_type', sa.Enum('CHECK_IN', 'CHECK_OUT', name='adjusted_type_enum'), nullable=True),
+    sa.Column('adjusted_type', sa.Enum('ENTRY_CORRECTION', 'EXIT_CORRECTION', 'MANUAL_ENTRY', 'OTHER', name='adjusted_type_enum'), nullable=False),
     sa.Column('reason', sa.Text(), nullable=False),
     sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='adjustment_status_enum'), nullable=True),
     sa.Column('reviewed_by', sa.UUID(), nullable=True),

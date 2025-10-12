@@ -1,18 +1,29 @@
-import { Bell } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Bell, LogOut } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 interface HeaderProps {
   userName?: string;
   userAvatar?: string;
   userInitials?: string;
+  role?: "RRHH" | "EMPLOYEE";
 }
 
 export function Header({
   userName = "Usuario",
   userAvatar,
   userInitials = "U",
+  role,
 }: HeaderProps) {
   const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const isHR = role === "RRHH";
 
   return (
     <header className="border-b border-gray-200 bg-white">
@@ -34,35 +45,40 @@ export function Header({
             </svg>
           </div>
           <span className="text-xl font-semibold text-gray-900">
-            Fichaje RRHH
+            Fichaje {isHR ? "RRHH" : "Empleado"}
           </span>
         </div>
 
         <nav className="hidden md:flex items-center gap-8">
-          <a
-            href="#"
+          <Link
+            to="/home"
             className="text-sm font-medium text-gray-900 hover:text-blue-500 transition-colors"
           >
             Inicio
-          </a>
-          <a
-            href="#"
-            className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
-          >
-            Calendario
-          </a>
-          <a
-            href="#"
+          </Link>
+
+          <Link
+            to="/adjustments"
             className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
           >
             Solicitudes
-          </a>
-          <a
-            href="#"
+          </Link>
+
+          {isHR && (
+            <Link
+              to="/employee-time-tracking"
+              className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+            >
+              Fichajes de empleados
+            </Link>
+          )}
+
+          <Link
+            to="/reports"
             className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
           >
             Informes
-          </a>
+          </Link>
         </nav>
 
         <div className="flex items-center gap-4">
@@ -75,7 +91,7 @@ export function Header({
 
           <div
             className="relative h-10 w-10 rounded-full overflow-hidden bg-blue-500 flex items-center justify-center cursor-pointer"
-            onClick={() => navigate("/profile")} // <-- Aquí navegamos al perfil
+            onClick={() => navigate("/profile")}
           >
             {userAvatar ? (
               <img
@@ -87,6 +103,14 @@ export function Header({
               <span className="text-white font-medium">{userInitials}</span>
             )}
           </div>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
+          >
+            <LogOut className="h-4 w-4" />
+            Salir
+          </button>
         </div>
       </div>
     </header>

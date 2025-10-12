@@ -4,8 +4,11 @@ import {
   useState,
   useEffect,
   ReactNode,
+  useMemo,
 } from "react";
+import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
+import { useToast } from "../hooks/use-toast";
 
 import { userService } from "../services/users/userService";
 import { UserOut, UserUpdate } from "../services/users/userTypes";
@@ -19,6 +22,7 @@ interface DecodedToken {
 interface AuthContextType {
   user: UserOut | null;
   role: DecodedToken["role"] | null;
+  isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
   updateUser: (data: UserUpdate) => Promise<void>;
@@ -30,22 +34,35 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserOut | null>(null);
   const [role, setRole] = useState<DecodedToken["role"] | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
+    const initAuth = async () => {
+      const token = localStorage.getItem("access_token");
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const decoded: DecodedToken = jwtDecode(token);
         if (decoded.exp * 1000 > Date.now()) {
           setRole(decoded.role);
-          loadUser(decoded.sub);
+          await loadUser(decoded.sub);
         } else {
           localStorage.removeItem("access_token");
         }
       } catch {
         localStorage.removeItem("access_token");
+      } finally {
+        setIsLoading(false);
       }
-    }
+    };
+
+    initAuth();
   }, []);
 
   const loadUser = async (userId: string) => {
@@ -63,37 +80,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const decoded: DecodedToken = jwtDecode(token);
     setRole(decoded.role);
     await loadUser(decoded.sub);
+    toast({
+      title: "Bienvenido",
+      description: `Has ingresado como "${decoded.role}"`,
+    });
   };
 
   const logout = () => {
     localStorage.removeItem("access_token");
     setUser(null);
     setRole(null);
+    navigate("/login");
   };
-
-  const updateUser = async (data: UserUpdate) => {
-    if (!user) return;
-    const res = await userService.updateUser(user.id, data);
-    const updatedUser = await userService.getUser(user.id);
-    setUser(updatedUser);
-    alert(res.message);
-  };
+const updateUser = async (userId: string, data: UserUpdate) => {
+  if (!user) return;
+  try {
+    const updatedUser = await userService.updateUser(userId, data);
+    setUser(updatedUser); 
+    toast({
+      title: "Usuario actualizado",
+      description: "Los cambios se guardaron correctamente.",
+      variant: "success",
+    });
+  } catch (err) {
+    toast({
+      title: "Error",
+      description: "No se pudo actualizar el usuario.",
+      variant: "destructive",
+    });
+  }
+};
 
   const deleteUser = async (userId: string) => {
-    await userService.deleteUser(userId);
-    setUser(null);
-    localStorage.removeItem("access_token");
-    alert("Usuario eliminado");
-    window.location.href = "/login";
+    try {
+      await userService.deleteUser(userId);
+      setUser(null);
+      localStorage.removeItem("access_token");
+      toast({
+        title: "Usuario eliminado",
+        description: "Se ha eliminado tu cuenta correctamente.",
+      });
+      navigate("/login");
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el usuario.",
+        variant: "destructive",
+      });
+    }
   };
 
-  return (
-    <AuthContext.Provider
-      value={{ user, role, login, logout, updateUser, deleteUser }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({ user, role, isLoading, login, logout, updateUser, deleteUser }),
+    [user, role, isLoading]
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

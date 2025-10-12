@@ -1,5 +1,5 @@
 import React from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../../context/AuthContext";
 import { Link } from "react-router-dom";
 
 export function Home() {
@@ -17,7 +17,7 @@ export function Home() {
   }
 
   return (
-    <div className="p-8 text-center">
+    <div className="p-8 text-center space-y-6">
       <h1 className="text-3xl font-bold mb-4">Welcome to the Home Page</h1>
 
       {role === "EMPLOYEE" && (

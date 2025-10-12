@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useAuth } from "../context/AuthContext";
-import { Button } from "../components/ui/button";
-import { UserUpdate } from "../services/users/userTypes";
+import { useAuth } from "../../context/AuthContext";
+import { Button } from "../../components/ui/button";
+import { UserUpdate } from "../../services/users/userTypes";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "../../hooks/use-toast";
 
 export default function ProfilePage() {
   const { user, role, updateUser, deleteUser } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   const [form, setForm] = useState<UserUpdate>({
     full_name: user?.full_name || "",
@@ -26,23 +30,54 @@ export default function ProfilePage() {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
   };
-
   const handleSave = async () => {
     if (!user) return;
 
-    const data: UserUpdate = {
-      full_name: form.full_name,
-      username: form.username,
-      email: form.email,
-    };
-
-    await updateUser(data);
-  };
-
+     const data: UserUpdate = {} as UserUpdate;
+  if (form.full_name.trim()) data.full_name = form.full_name.trim();
+  if (form.username.trim()) data.username = form.username.trim();
+  if (form.email.trim()) data.email = form.email.trim();
+    try {
+    const updatedUser = await updateUser(user.id, data); 
+    toast({
+      title: "Usuario actualizado",
+      description: "Tus cambios se han guardado correctamente",
+      variant: "success",
+    });
+  } catch (err) {
+    toast({
+      title: "Error",
+      description:
+        err instanceof Error ? err.message : "No se pudo guardar los cambios",
+      variant: "destructive",
+    });
+  }
+};
   const handleDelete = async () => {
+    if (!user) return;
+
     if (confirm("¿Seguro que quieres eliminar este usuario?")) {
-      await deleteUser(user!.id);
+      try {
+        await deleteUser(user.id);
+        toast({
+          title: "Usuario eliminado",
+          description: "El usuario ha sido eliminado correctamente",
+          variant: "success",
+        });
+      } catch (err) {
+        toast({
+          title: "Error",
+          description:
+            err instanceof Error
+              ? err.message
+              : "No se pudo eliminar el usuario",
+          variant: "destructive",
+        });
+      }
     }
+  };
+  const handleBack = () => {
+    navigate(-1);
   };
 
   if (!user)
@@ -54,6 +89,12 @@ export default function ProfilePage() {
         <h1 className="text-3xl font-bold text-gray-800 text-center mb-6">
           Mi Perfil
         </h1>
+        <Button
+          onClick={handleBack}
+          className="bg-gray-300 hover:bg-gray-400 text-gray-800 mb-4"
+        >
+          Atrás
+        </Button>
 
         <div className="space-y-6">
           <div>
@@ -105,7 +146,7 @@ export default function ProfilePage() {
               value={
                 typeof user.role === "string"
                   ? user.role
-                  : (user.role as any).name
+                  : user.role?.name || ""
               }
               disabled={role === "EMPLOYEE"}
               readOnly
@@ -119,11 +160,16 @@ export default function ProfilePage() {
             </label>
             <input
               type="text"
-              value={new Date(user.create_date).toLocaleDateString("es-ES", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+             value={
+              user.create_date
+                ? new Date(user.create_date).toLocaleDateString("es-ES", {
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                  })
+                : ""
+            }
+
               readOnly
               className="mt-1 block w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 shadow-sm cursor-not-allowed"
             />

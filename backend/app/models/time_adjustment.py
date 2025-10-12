@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Boolean, ForeignKey, DateTime, Text, Chec
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.models.entity_abstract import EntityAbstract
-from app.schemas.enum import RecordTypeEnum, AdjustmentStatusEnum
+from app.schemas.enum import AdjustmentStatusEnum, AdjustmentTypeEnum
 from sqlalchemy.types import Enum as PgEnum
 
 class TimeAdjustment(EntityAbstract):
@@ -11,7 +11,7 @@ class TimeAdjustment(EntityAbstract):
     time_record_id = Column(UUID(as_uuid=True), ForeignKey("time_tracking.id", ondelete="SET NULL"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     adjusted_timestamp = Column(DateTime(timezone=True))
-    adjusted_type = Column(PgEnum(RecordTypeEnum, name="adjusted_type_enum"))
+    adjusted_type = Column(PgEnum(AdjustmentTypeEnum, name="adjusted_type_enum"), nullable=False)
     reason = Column(Text, nullable=False)
     status = Column(PgEnum(AdjustmentStatusEnum, name="adjustment_status_enum"), default=AdjustmentStatusEnum.PENDING)
     reviewed_by = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"))
