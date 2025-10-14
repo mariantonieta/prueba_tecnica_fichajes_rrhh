@@ -1,26 +1,29 @@
-import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Select, SelectItem } from "../ui/select";
-import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
+import { Button } from "../ui/button";
 import { useToast } from "../../hooks/use-toast";
-import { authService } from "../../services/auth/authService";
+import { userService } from "../../services/users/userService";
+import { useNavigate } from "react-router-dom";
+import { Loader } from "../ui/loader";
+import { Card, CardHeader, CardContent, CardFooter } from  "../ui/card";
 
 const schema = z
   .object({
-    username: z.string().min(3, "Username must be at least 3 characters long"),
-    email: z.string().email("Invalid email address"),
-    fullname: z.string().min(2, "Full name must be at least 2 characters long"),
-    password: z.string().min(6, "Password must be at least 6 characters long"),
-    confirm_password: z.string().min(6, "Please confirm your password"),
-    role: z.enum(["EMPLOYEE", "RRHH"], { required_error: "Role is required" }),
+    username: z.string().min(3, "El nombre de usuario debe tener al menos 3 caracteres"),
+    email: z.string().email("Correo electrónico inválido"),
+    full_name: z.string().min(2, "El nombre completo debe tener al menos 2 caracteres"),
+    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+    confirm_password: z.string().min(6, "Confirma tu contraseña"),
+    initial_vacation_days: z.number().optional(),
+    initial_weekly_hours: z.number().optional(),
+    initial_monthly_hours: z.number().optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
     path: ["confirm_password"],
-    message: "Passwords do not match",
+    message: "Las contraseñas no coinciden",
   });
 
 type FormData = z.infer<typeof schema>;
@@ -38,9 +41,11 @@ function FormField({
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="font-medium text-sm text-gray-700">
+        {label}
+      </Label>
       {children}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
@@ -48,109 +53,121 @@ function FormField({
 export function RegisterForm() {
   const { toast } = useToast();
   const navigate = useNavigate();
+ 
+
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
 
   const onSubmit = async (data: FormData) => {
     try {
-      await authService.register(data);
-      toast({
-        title: "Account created!",
-        description: "Your account has been successfully created.",
+      await userService.createUser({
+        ...data,
+        role: "EMPLOYEE",
       });
-      navigate("/dashboard");
-    } catch (error) {
+
       toast({
-        title: "Error",
-        description:
-          error instanceof Error
-            ? error.message
-            : "An error occurred during registration.",
+        title: "Usuario creado correctamente",
+        description: "Redirigiendo al historial de fichajes...",
+      });
+
+      setTimeout(() => {
+        navigate("/employee-time-tracking");
+      }, 1500);
+    } catch (error: any) {
+      toast({
+        title: " Error al crear el usuario",
+        description: error?.response?.data?.detail || "Inténtalo nuevamente.",
         variant: "destructive",
       });
     }
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <FormField
-        id="username"
-        label="Username"
-        error={errors.username?.message}
-      >
-        <Input id="username" placeholder="johndoe" {...register("username")} />
-      </FormField>
-
-      <FormField
-        id="fullname"
-        label="Full Name"
-        error={errors.fullname?.message}
-      >
-        <Input id="fullname" placeholder="John Doe" {...register("fullname")} />
-      </FormField>
-
-      <FormField id="email" label="Email Address" error={errors.email?.message}>
-        <Input
-          id="email"
-          type="email"
-          placeholder="you@company.com"
-          {...register("email")}
-        />
-      </FormField>
-
-      <FormField id="role" label="Role" error={errors.role?.message}>
-        <Select
-          id="role"
-          {...register("role")}
-          onChange={(e) => setValue("role", e.target.value as FormData["role"])}
-        >
-          <SelectItem value="EMPLOYEE">Employee</SelectItem>
-          <SelectItem value="RRHH">RRHH</SelectItem>
-        </Select>
-      </FormField>
-
-      <FormField
-        id="password"
-        label="Password"
-        error={errors.password?.message}
-      >
-        <Input
-          id="password"
-          type="password"
-          placeholder="••••••••"
-          {...register("password")}
-        />
-      </FormField>
-
-      <FormField
-        id="confirm_password"
-        label="Confirm Password"
-        error={errors.confirm_password?.message}
-      >
-        <Input
-          id="confirm_password"
-          type="password"
-          placeholder="••••••••"
-          {...register("confirm_password")}
-        />
-      </FormField>
-
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
-        {isSubmitting ? "Creating account..." : "Create Account"}
-      </Button>
-
-      <div className="text-center text-sm text-gray-500">
-        <p>
-          Ya tienes cuenta?{" "}
-          <Link to="/login" className="font-medium text-gray-700 underline">
-            Inicia Sesión
-          </Link>
+    <Card className="w-full shadow-lg border border-gray-200 rounded-2xl">
+      <CardHeader>
+        <h2 className="text-2xl font-semibold text-center text-gray-800">
+          Crear cuenta de empleado
+        </h2>
+        <p className="text-sm text-gray-500 text-center">
+          Ingresa los datos del nuevo empleado
         </p>
-      </div>
-    </form>
+      </CardHeader>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <CardContent className="space-y-5">
+          <FormField id="username" label="Nombre de usuario" error={errors.username?.message}>
+            <Input placeholder="johndoe" {...register("username")} />
+          </FormField>
+
+          <FormField id="full_name" label="Nombre completo" error={errors.full_name?.message}>
+            <Input placeholder="John Doe" {...register("full_name")} />
+          </FormField>
+
+          <FormField id="email" label="Correo electrónico" error={errors.email?.message}>
+            <Input type="email" placeholder="usuario@empresa.com" {...register("email")} />
+          </FormField>
+
+          <FormField id="password" label="Contraseña" error={errors.password?.message}>
+            <Input type="password" placeholder="••••••••" {...register("password")} />
+          </FormField>
+
+          <FormField
+            id="confirm_password"
+            label="Confirmar contraseña"
+            error={errors.confirm_password?.message}
+          >
+            <Input type="password" placeholder="••••••••" {...register("confirm_password")} />
+          </FormField>
+
+          <div className="grid grid-cols-3 gap-4 pt-3 border-t">
+            <FormField id="initial_vacation_days" label="Vacaciones iniciales">
+              <Input
+                type="number"
+                min={0}
+                {...register("initial_vacation_days", { valueAsNumber: true })}
+              />
+            </FormField>
+
+            <FormField id="initial_weekly_hours" label="Horas semanales">
+              <Input
+                type="number"
+                min={0}
+                {...register("initial_weekly_hours", { valueAsNumber: true })}
+              />
+            </FormField>
+
+            <FormField id="initial_monthly_hours" label="Horas mensuales">
+              <Input
+                type="number"
+                min={0}
+                {...register("initial_monthly_hours", { valueAsNumber: true })}
+              />
+            </FormField>
+          </div>
+        </CardContent>
+
+        <CardFooter>
+          <Button
+            type="submit"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader/>
+                Creando usuario...
+              </>
+            ) : (
+              "Crear usuario"
+            )}
+          </Button>
+      </CardFooter>
+      </form>
+    </Card>
   );
 }

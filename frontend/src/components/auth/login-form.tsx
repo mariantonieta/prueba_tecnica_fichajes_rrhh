@@ -57,7 +57,7 @@ export function LoginForm() {
   const onSubmit = async (data: FormData) => {
     try {
       const result = await authService.login(data);
-
+        console.log("Login response:", result);
       if (!result?.access_token)
         throw new Error("No access token received from backend");
 

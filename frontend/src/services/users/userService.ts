@@ -1,12 +1,27 @@
 import { axiosClient } from "../api/client"
-import { UserOut, UserUpdate } from "./userTypes"
+import { authService } from "../auth/authService";
+import { UserOut, UserUpdate, UserCreate } from "./userTypes"
 
 export const userService = {
-async updateUser(userId: string, data: UserUpdate): Promise<UserOut> {
-    const response = await axiosClient.patch(`/users/${userId}`, data);
-    return response.data; 
-},
+    async createUser(data: UserCreate): Promise<{ message: string; email: string }> {
+    const token = authService.getToken(); 
 
+    const response = await axiosClient.post(`/users/create`, data, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return response.data;
+  },
+
+  async updateUser(userId: string, data: UserUpdate): Promise<UserOut> {
+    const token = authService.getToken();
+    const response = await axiosClient.patch(`/users/${userId}`, data, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return response.data; 
+  },
 
     async deleteUser(userId: string): Promise<{ message: string }> {
         const response = await axiosClient.delete(`/users/${userId}`)

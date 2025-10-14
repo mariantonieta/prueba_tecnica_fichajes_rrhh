@@ -6,19 +6,21 @@ from app.models.role import Role
 from app.models.user import User
 from app.models.time_tracking import TimeTracking
 from app.models.time_off_request import TimeOffRequest
+from app.models.leave_balance import LeaveBalance
+from app.models.time_adjustment import TimeAdjustment
 from passlib.hash import bcrypt
 from datetime import datetime, date
 from app.schemas.enum import (
     UserRole,
     RecordTypeEnum,
     LeaveStatusEnum,
-    LeaveTypeEnum
+    LeaveTypeEnum,
+    AdjustmentStatusEnum,
+    AdjustmentTypeEnum
 )
-
 
 def seed_data():
     db: Session = SessionLocal()
-##evito duplicar el seed si ya esta ejecutado
     try:
         if db.execute(select(Role)).scalars().first():
             print("Seed ya ejecutado")
@@ -26,16 +28,17 @@ def seed_data():
             return
 
         print("Insertando datos iniciales...")
-##asigno los roles
+
+        # Roles
         rrhh_role = Role(id=uuid.uuid4(), name=UserRole.RRHH)
         employee_role = Role(id=uuid.uuid4(), name=UserRole.EMPLOYEE)
         db.add_all([rrhh_role, employee_role])
         db.commit()
 
-##contraseña base para todos los usuarios
+        # Contraseña base
         hashed_pw = bcrypt.hash("123456")
 
-## Usuarios
+        # Usuarios
         rrhh_user = User(
             username="nerea_rrhh",
             email="nerea@empresa.com",
@@ -75,47 +78,55 @@ def seed_data():
         db.add_all([rrhh_user, mariantonieta, luisa, juan])
         db.commit()
 
-##asigno los fichajes
+        balances = [
+            LeaveBalance(
+                user_id=mariantonieta.id,
+                year=datetime.now().year,
+                leave_type=LeaveTypeEnum.VACATION,
+                used_days=0,
+                remaining_days=0,
+                weekly_hours=40,
+                monthly_hours=0,
+                last_updated=datetime.utcnow()
+            ),
+            LeaveBalance(
+                user_id=luisa.id,
+                year=datetime.now().year,
+                leave_type=LeaveTypeEnum.VACATION,
+                used_days=0,
+                remaining_days=0,
+                weekly_hours=30,
+                monthly_hours=0,
+                last_updated=datetime.utcnow()
+            ),
+            LeaveBalance(
+                user_id=juan.id,
+                year=datetime.now().year,
+                leave_type=LeaveTypeEnum.VACATION,
+                used_days=0,
+                remaining_days=0,
+                weekly_hours=40,
+                monthly_hours=0,
+                last_updated=datetime.utcnow()
+            ),
+        ]
+        db.add_all(balances)
+        db.commit()
+
         base_day = datetime(2025, 10, 10)
         db.add_all([
-            # Mariantonieta
-            TimeTracking(
-                user_id=mariantonieta.id,
-                record_type=RecordTypeEnum.CHECK_IN,
-                timestamp=base_day.replace(hour=8, minute=0)
-            ),
-            TimeTracking(
-                user_id=mariantonieta.id,
-                record_type=RecordTypeEnum.CHECK_OUT,
-                timestamp=base_day.replace(hour=16, minute=15)
-            ),
+            TimeTracking(user_id=mariantonieta.id, record_type=RecordTypeEnum.CHECK_IN, timestamp=base_day.replace(hour=8, minute=0)),
+            TimeTracking(user_id=mariantonieta.id, record_type=RecordTypeEnum.CHECK_OUT, timestamp=base_day.replace(hour=16, minute=15)),
 
-            # Luisa
-            TimeTracking(
-                user_id=luisa.id,
-                record_type=RecordTypeEnum.CHECK_IN,
-                timestamp=base_day.replace(hour=9, minute=5)
-            ),
-            TimeTracking(
-                user_id=luisa.id,
-                record_type=RecordTypeEnum.CHECK_OUT,
-                timestamp=base_day.replace(hour=17, minute=0)
-            ),
+            TimeTracking(user_id=luisa.id, record_type=RecordTypeEnum.CHECK_IN, timestamp=base_day.replace(hour=9, minute=5)),
+            TimeTracking(user_id=luisa.id, record_type=RecordTypeEnum.CHECK_OUT, timestamp=base_day.replace(hour=17, minute=0)),
 
-            # Juan
-            TimeTracking(
-                user_id=juan.id,
-                record_type=RecordTypeEnum.CHECK_IN,
-                timestamp=base_day.replace(hour=7, minute=50)
-            ),
-            TimeTracking(
-                user_id=juan.id,
-                record_type=RecordTypeEnum.CHECK_OUT,
-                timestamp=base_day.replace(hour=15, minute=45)
-            ),
+            TimeTracking(user_id=juan.id, record_type=RecordTypeEnum.CHECK_IN, timestamp=base_day.replace(hour=7, minute=50)),
+            TimeTracking(user_id=juan.id, record_type=RecordTypeEnum.CHECK_OUT, timestamp=base_day.replace(hour=15, minute=45)),
         ])
+        db.commit()
 
-##Solicitudes de ausencia 
+        # Solicitudes de ausencia
         db.add_all([
             TimeOffRequest(
                 user_id=mariantonieta.id,
@@ -124,7 +135,7 @@ def seed_data():
                 leave_type=LeaveTypeEnum.VACATION,
                 days_requested=3,
                 reason="Vacaciones familiares",
-                status=LeaveStatusEnum.APPROVED,
+                status=LeaveStatusEnum.PENDING,
                 reviewed_by=rrhh_user.id,
             ),
             TimeOffRequest(
@@ -144,12 +155,32 @@ def seed_data():
                 leave_type=LeaveTypeEnum.PERSONAL,
                 days_requested=1,
                 reason="Trámite personal",
-                status=LeaveStatusEnum.APPROVED,
+                status=LeaveStatusEnum.PENDING,
                 reviewed_by=rrhh_user.id,
             ),
         ])
-
         db.commit()
+
+        db.add_all([
+            TimeAdjustment(
+                user_id=mariantonieta.id,
+                adjusted_timestamp=base_day.replace(hour=8, minute=5),
+                adjusted_type=AdjustmentTypeEnum.MANUAL_ENTRY,
+                reason="Entrada corregida",
+                status=AdjustmentStatusEnum.PENDING,
+                reviewed_by=rrhh_user.id
+            ),
+            TimeAdjustment(
+                user_id=luisa.id,
+                adjusted_timestamp=base_day.replace(hour=17, minute=5),
+                adjusted_type=AdjustmentTypeEnum.EXIT_CORRECTION,
+                reason="Salida corregida",
+                status=AdjustmentStatusEnum.PENDING,
+                reviewed_by=None
+            ),
+        ])
+        db.commit()
+
         print("Seed ejecutado correctamente.")
     except Exception as e:
         print("Error al hacer seed:", e)

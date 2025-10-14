@@ -1,7 +1,7 @@
 export interface RegisterData {
     username: string
     email: string
-    fullname: string
+    full_name: string
     password: string
     confirm_password: string
     role: "EMPLOYEE" | "RRHH"

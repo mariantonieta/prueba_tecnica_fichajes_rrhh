@@ -1,8 +1,7 @@
 import { axiosClient } from "../api/client";
 import { endpoints } from "../api/endpoints";
 import {
-    RegisterData,
-    RegisterResponse,
+   
     LoginData,
     TokenResponse,
 } from "./auth.types";
@@ -15,13 +14,6 @@ interface DecodedToken {
 }
 
 export const authService = {
-    async register(data: RegisterData): Promise<RegisterResponse> {
-        const response = await axiosClient.post<RegisterResponse>(
-            endpoints.auth.register,
-            data
-        );
-        return response.data;
-    },
 
     async login(data: LoginData): Promise<{ access_token: string; role: string }> {
         const formData = new FormData();

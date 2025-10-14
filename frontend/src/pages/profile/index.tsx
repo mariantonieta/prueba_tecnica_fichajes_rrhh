@@ -53,29 +53,6 @@ export default function ProfilePage() {
     });
   }
 };
-  const handleDelete = async () => {
-    if (!user) return;
-
-    if (confirm("¿Seguro que quieres eliminar este usuario?")) {
-      try {
-        await deleteUser(user.id);
-        toast({
-          title: "Usuario eliminado",
-          description: "El usuario ha sido eliminado correctamente",
-          variant: "success",
-        });
-      } catch (err) {
-        toast({
-          title: "Error",
-          description:
-            err instanceof Error
-              ? err.message
-              : "No se pudo eliminar el usuario",
-          variant: "destructive",
-        });
-      }
-    }
-  };
   const handleBack = () => {
     navigate(-1);
   };
@@ -84,8 +61,8 @@ export default function ProfilePage() {
     return <p className="text-center mt-20 text-gray-500">Cargando...</p>;
 
   return (
-    <main className="min-h-screen bg-gray-100 flex justify-center py-12">
-      <div className="bg-white p-10 rounded-2xl shadow-lg w-full max-w-md space-y-8 mx-4">
+    <main className="min-h-screen  flex justify-center py-12">
+      <div className="bg-white p-10 rounded-2xl g w-full max-w-md space-y-8 mx-4">
         <h1 className="text-3xl font-bold text-gray-800 text-center mb-6">
           Mi Perfil
         </h1>
@@ -184,14 +161,7 @@ export default function ProfilePage() {
             Guardar Cambios
           </Button>
 
-          {role === "RRHH" && (
-            <Button
-              onClick={handleDelete}
-              className="bg-red-600 hover:bg-red-700 text-white w-full md:w-auto"
-            >
-              Eliminar Usuario
-            </Button>
-          )}
+         
         </div>
       </div>
     </main>

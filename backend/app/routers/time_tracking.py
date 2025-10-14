@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import date, datetime, timezone, timedelta
 
 from app.database import get_db
 from app.core.deps import get_current_user
@@ -28,10 +28,8 @@ def get_time_records(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.role.name == UserRole.RRHH:
-        return db.query(time_tracking.TimeTracking).all()
-    
     return time_tracking.get_time_records_by_user(db, user_id=current_user.id)
+
 
 @router.get("/user/{user_id}", response_model=List[TimeTrackingSearchOut])
 def get_time_records_by_user(
@@ -68,14 +66,12 @@ def search_time_records(
 
 @router.get("/weekly")
 def weekly_hours(
-    week_start: datetime = Query(..., description="Inicio de la semana, ej: 2025-10-06"),
+    week_start: date = Query(..., description="Inicio de la semana, ej: 2025-10-06"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    try:
-        return time_tracking.get_weekly_hours(db, current_user.id, week_start)
-    except DomainError as e:
-        raise bad_request(e.message)
+    week_start_dt = datetime.combine(week_start, datetime.min.time(), tzinfo=timezone.utc)
+    return time_tracking.get_weekly_hours(db, current_user.id, week_start_dt)
 
 @router.get("/monthly")
 def monthly_hours(

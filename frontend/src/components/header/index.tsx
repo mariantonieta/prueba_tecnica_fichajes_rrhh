@@ -2,6 +2,7 @@ import { Bell, LogOut } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+
 interface HeaderProps {
   userName?: string;
   userAvatar?: string;
@@ -17,6 +18,8 @@ export function Header({
 }: HeaderProps) {
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  
 
   const handleLogout = () => {
     logout();
@@ -65,19 +68,28 @@ export function Header({
           </Link>
 
           {isHR && (
-            <Link
-              to="/employee-time-tracking"
-              className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
-            >
-              Fichajes de empleados
-            </Link>
+            <>
+              <Link
+                to="/employee-time-tracking"
+                className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+              >
+                Fichajes de empleados
+              </Link>
+            
+            </>
           )}
 
           <Link
-            to="/reports"
+            to="/time-off-request"
             className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
           >
-            Informes
+            Permisos/Vacaciones
+          </Link>
+             <Link
+            to="/report"
+            className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors"
+          >
+            Informe
           </Link>
         </nav>
 

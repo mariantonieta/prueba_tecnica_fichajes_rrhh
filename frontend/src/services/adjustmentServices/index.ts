@@ -31,7 +31,7 @@ export const adjustmentService = {
         return res.data;
     },
     async updateStatus(id: string, status: AdjustmentStatusEnum, comment?: string) {
-        const res = await axiosClient.patch(`/time-adjustments/${id}/review`, null, {
+        const res = await axiosClient.put(`/time-adjustments/${id}/review`, null, {
             params: {
                 new_status: status,
                 review_comment: comment,

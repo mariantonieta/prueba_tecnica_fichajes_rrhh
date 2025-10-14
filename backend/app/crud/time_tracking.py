@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from uuid import UUID
 from datetime import datetime, timedelta, timezone
+
 from app.models.time_tracking import TimeTracking
 from app.schemas.time_tracking import TimeTrackingCreate
 from app.models.user import User
@@ -9,7 +10,7 @@ import calendar
 from app.models.time_adjustment import TimeAdjustment
 
 
-MIN_TIME_BETWEEN_RECORDS = 60  # segundos mínimos entre fichajes
+MIN_TIME_BETWEEN_RECORDS = 600  
 
 
 def create_time_record(db: Session, user_id: UUID, record: TimeTrackingCreate):
@@ -45,11 +46,9 @@ def create_time_record(db: Session, user_id: UUID, record: TimeTrackingCreate):
 
 
 def get_time_records_by_user(db: Session, user_id: UUID):
-    """Obtiene registros de fichaje de un usuario específico"""
     return db.query(TimeTracking).filter(TimeTracking.user_id == user_id).all()
 
 def get_time_records_by_user_with_user_info(db: Session, user_id: UUID):
-    """Obtiene registros de fichaje con información del usuario EN FORMATO DICCIONARIO"""
     records = (
         db.query(TimeTracking, User.username, User.full_name, User.email)
         .join(User, TimeTracking.user_id == User.id)

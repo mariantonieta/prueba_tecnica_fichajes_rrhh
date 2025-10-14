@@ -34,3 +34,9 @@ class User(EntityAbstract):
         back_populates="reviewer",
         foreign_keys="[TimeOffRequest.reviewed_by]"  
     )
+
+    leave_balances = relationship(
+    "LeaveBalance",
+    back_populates="user",
+    cascade="all, delete-orphan"
+    )

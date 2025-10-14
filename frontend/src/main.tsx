@@ -10,8 +10,10 @@ import RRHDDashboard from "./pages/dashboard/rrhhDasboard";
 import "./index.css";
 import ProfilePage from "./pages/profile";
 import RequestAdjustments from "./pages/requestAjustments";
-import EmployeeTimeTracking from "./pages/employee-time-tracking";
+import EmployeeTimeTracking from "./pages/employeeTimeTracking";
 import { ToastProvider } from "./hooks/use-toast";
+import TimeOffRequest from "./pages/timeOffRequest";
+import ReportEmployee from "./pages/reportEmployee";
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { role, isLoading } = useAuth();
@@ -37,7 +39,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/users/create" element={<RegisterPage />} />
 
             <Route
               path="/home"
@@ -79,7 +81,26 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
                 </ProtectedRoute>
               }
             />
-
+    <Route
+              path="/time-off-request"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <TimeOffRequest />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+              <Route
+              path="/report"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <ReportEmployee />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
             <Route path="/" element={<Navigate to="/home" replace />} />
             <Route path="*" element={<Navigate to="/home" replace />} />
           </Routes>

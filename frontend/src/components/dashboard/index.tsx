@@ -47,13 +47,15 @@ export function DashboardBase({
   };
 
   const fetchWeeklyHours = async () => {
-    const mondayUTC = getMondayOfWeek(new Date());
-    const weekly = await timeTrackingService.getWeeklyHours(
-      mondayUTC.toISOString()
-    );
-    setWeeklyHours(weekly.hours_worked);
-    setWeeklyLimit(weekly.weekly_limit);
-  };
+  const mondayUTC = getMondayOfWeek(new Date());
+
+  const mondayDate = mondayUTC.toISOString().split("T")[0];
+
+  const weekly = await timeTrackingService.getWeeklyHours(mondayDate);
+
+  setWeeklyHours(weekly.hours_worked);
+  setWeeklyLimit(weekly.weekly_limit);
+};
 
   const fetchMonthlyHours = async () => {
     const today = new Date();

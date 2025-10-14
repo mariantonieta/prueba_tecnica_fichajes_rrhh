@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RequestsTable, Request } from "../../components/requestTable";
+import { RequestsTable } from "../../components/requestTable"
 import {
   adjustmentService,
   AdjustmentStatusEnum,
@@ -8,6 +8,41 @@ import { userService } from "../../services/users/userService";
 import { useToast } from "../../hooks/use-toast";
 import { Loader } from "../../components/ui/loader";
 import { UserOut } from "../../services/users/userTypes";
+import { Column } from "../../components/ui/table";
+
+interface Request {
+  id: string;
+  type: string;
+  date: string;
+  status: "approved" | "pending" | "rejected";
+  statusLabel: string;
+  userId: string;
+  user_id?: string; 
+}
+
+const adjustmentColumns: Column<Request>[] = [
+  {
+    header: "Tipo",
+    accessor: "type",
+  },
+  {
+    header: "Fecha",
+    accessor: "date",
+  },
+  {
+    header: "Estado",
+    accessor: "status",
+    render: (value, row) => (
+      <span className={`px-2 py-1 rounded-full text-xs ${
+        row.status === "approved" ? "bg-green-100 text-green-800" :
+        row.status === "rejected" ? "bg-red-100 text-red-800" :
+        "bg-yellow-100 text-yellow-800"
+      }`}>
+        {row.statusLabel}
+      </span>
+    ),
+  },
+];
 
 export default function RequestAdjustments() {
   const { toast } = useToast();
@@ -22,20 +57,25 @@ export default function RequestAdjustments() {
         setUser(userData);
 
         const allAdjustments = await adjustmentService.getAll();
-        const mappedRequests: Request[] = allAdjustments.map((adj: any) => ({
-          id: adj.id,
+        
+        const safeAdjustments = Array.isArray(allAdjustments) ? allAdjustments : [];
+        
+        const mappedRequests: Request[] = safeAdjustments.map((adj: any) => ({
+          id: adj.id || "",
           type: adj.adjusted_type?.replace("_", " ") || "Ajuste",
-          date: new Date(adj.adjusted_timestamp).toLocaleString(),
-          status: adj.status.toLowerCase() as
-            | "approved"
-            | "pending"
-            | "rejected",
+          date: adj.adjusted_timestamp 
+            ? new Date(adj.adjusted_timestamp).toLocaleString() 
+            : "Fecha no disponible",
+          status: (adj.status?.toLowerCase() as "approved" | "pending" | "rejected") || "pending",
           statusLabel: adj.status?.replace("_", " ") || "Pendiente",
-          userId: adj.user_id,
+          userId: adj.user_id || "",
+          user_id: adj.user_id || "", 
         }));
+        
         setRequests(mappedRequests);
       } catch (error: any) {
         console.error("Error cargando datos:", error);
+        setRequests([]); 
         toast({
           title: "Error al cargar solicitudes",
           description:
@@ -47,21 +87,23 @@ export default function RequestAdjustments() {
       }
     };
     fetchData();
-  }, []);
+  }, [toast]);
 
   const handleStatusChange = async (
     id: string,
     newStatus: AdjustmentStatusEnum
   ) => {
     try {
+        const statusForBackend = newStatus.toUpperCase() as AdjustmentStatusEnum;
+
       await adjustmentService.updateStatus(
         id,
-        newStatus,
-        `Revisión por ${newStatus}`
+        statusForBackend,
+        `Revisión por ${statusForBackend}`
       );
 
       setRequests((prev) =>
-        prev.map((req) =>
+        (Array.isArray(prev) ? prev : []).map((req) =>
           req.id === id
             ? {
                 ...req,
@@ -89,6 +131,13 @@ export default function RequestAdjustments() {
       });
     }
   };
+
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const hasRequests = safeRequests.length > 0;
+
+  const totalRequests = safeRequests.length;
+  const pendingRequests = safeRequests.filter((r) => r.status === "pending").length;
+  const resolvedRequests = safeRequests.filter((r) => r.status !== "pending").length;
 
   if (loading) {
     return (
@@ -126,17 +175,17 @@ export default function RequestAdjustments() {
             {[
               {
                 label: "Total de Solicitudes",
-                value: requests.length,
+                value: totalRequests,
                 color: "blue",
               },
               {
                 label: "Pendientes",
-                value: requests.filter((r) => r.status === "pending").length,
+                value: pendingRequests,
                 color: "yellow",
               },
               {
                 label: "Resueltas",
-                value: requests.filter((r) => r.status !== "pending").length,
+                value: resolvedRequests,
                 color: "green",
               },
             ].map((stat) => (
@@ -147,7 +196,11 @@ export default function RequestAdjustments() {
                 <h3 className="text-lg font-semibold text-gray-900">
                   {stat.label}
                 </h3>
-                <p className={`text-2xl font-bold text-${stat.color}-600`}>
+                <p className={`text-2xl font-bold ${
+                  stat.color === "blue" ? "text-blue-600" :
+                  stat.color === "yellow" ? "text-yellow-600" :
+                  "text-green-600"
+                }`}>
                   {stat.value}
                 </p>
               </div>
@@ -156,17 +209,24 @@ export default function RequestAdjustments() {
         )}
 
         <div className="overflow-x-auto bg-white rounded-lg shadow border">
-          <RequestsTable
-            requests={requests}
-            role={user.role}
-            currentUserId={user.id}
-            onStatusChange={
-              user.role === "RRHH" ? handleStatusChange : undefined
-            }
-          />
+          {hasRequests ? (
+            <RequestsTable
+              requests={safeRequests}
+              role={user.role}
+              currentUserId={user.id}
+              columns={adjustmentColumns}
+              onStatusChange={
+                user.role === "RRHH" ? handleStatusChange : undefined
+              }
+            />
+          ) : (
+            <div className="text-center p-4 text-gray-500">
+              No hay solicitudes de ajuste disponibles
+            </div>
+          )}
         </div>
 
-        {requests.length === 0 && (
+        {!hasRequests && (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">📋</div>
             <h3 className="text-xl font-semibold text-gray-600 mb-2">

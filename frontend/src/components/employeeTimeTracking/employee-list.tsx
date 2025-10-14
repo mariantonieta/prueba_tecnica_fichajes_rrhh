@@ -1,5 +1,6 @@
 import React from "react";
-import { Search, User } from "lucide-react";
+import { Search, User, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { UserOut } from "../../services/users/userTypes";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
   CardTitle,
 } from "../ui/card";
 import { Input } from "../ui/input";
+import { Button } from "../ui/button"; 
 
 interface EmployeeListProps {
   employees: UserOut[];
@@ -25,17 +27,35 @@ export function EmployeeList({
   onSearchChange,
   onEmployeeSelect,
 }: EmployeeListProps) {
+  const navigate = useNavigate();
+
+  const handleAddUser = () => {
+    navigate("/users/create");
+  };
+
   return (
     <Card className="lg:col-span-1">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <User className="h-5 w-5" />
-          Empleados ({employees.length})
+        <CardTitle className="flex items-center gap-2 justify-between">
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Empleados ({employees.length})
+          </div>
+
+          <Button
+            onClick={handleAddUser}
+            className="flex items-center gap-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm"
+          >
+            <UserPlus className="h-4 w-4" />
+        
+          </Button>
         </CardTitle>
+
         <CardDescription>
           Selecciona un empleado para ver su historial
         </CardDescription>
-        <div className="relative">
+
+        <div className="relative mt-2">
           <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
           <Input
             placeholder="Buscar empleados..."
@@ -45,6 +65,7 @@ export function EmployeeList({
           />
         </div>
       </CardHeader>
+
       <CardContent className="p-0">
         <div className="max-h-96 overflow-y-auto">
           {employees.length === 0 ? (
