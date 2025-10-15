@@ -168,16 +168,21 @@ Posible sistema de notificaciones para avisar a empleados sobre aprobaciones/rec
 - Copia el archivo de ejemplo y renómbralo a .env:
 
   ```bash
-  Copiar código
   cp .env.example .env
   Levantar los servicios con Docker
   ```
 
 3. **Ejecuta el contenedor**
-   bash
-   Copiar código
-   docker compose up --build
-   Acceder a los servicios
+
+   ```bash
+
+   ```
+
+- docker compose up --build
+
+  ```
+
+  ```
 
 4. **Listo-Accede los links**
    Frontend: http://localhost:3000
