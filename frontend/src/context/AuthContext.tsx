@@ -7,7 +7,7 @@ import {
   useMemo,
 } from "react";
 import { useNavigate } from "react-router-dom";
-import {jwtDecode} from "jwt-decode";
+import { jwtDecode } from "jwt-decode";
 import { useToast } from "../hooks/use-toast";
 
 import { userService } from "../services/users/userService";
@@ -25,7 +25,10 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
-  updateUser: (userId: string, data: UserUpdate) => Promise<UserOut | undefined>;
+  updateUser: (
+    userId: string,
+    data: UserUpdate
+  ) => Promise<UserOut | undefined>;
   deleteUser: (userId: string) => Promise<void>;
 }
 
@@ -93,38 +96,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate("/login");
   };
 
-const updateUser = async (userId: string, data: UserUpdate): Promise<UserOut | undefined> => {
-  try {
-    const updatedUser = await userService.updateUser(userId, data);
-    
-    if (user?.id === userId) {
-      setUser(updatedUser);
+  const updateUser = async (
+    userId: string,
+    data: UserUpdate
+  ): Promise<UserOut | undefined> => {
+    try {
+      const updatedUser = await userService.updateUser(userId, data);
+
+      if (user?.id === userId) {
+        setUser(updatedUser);
+      }
+
+      return updatedUser;
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el usuario.",
+        variant: "destructive",
+      });
+      return undefined;
     }
-    
-    toast({
-      title: "Usuario actualizado",
-      description: "Los cambios se guardaron correctamente.",
-      variant: "success",
-    });
-    return updatedUser;
-  } catch (err) {
-    toast({
-      title: "Error",
-      description: "No se pudo actualizar el usuario.",
-      variant: "destructive",
-    });
-    return undefined;
-  }
-};
+  };
   const deleteUser = async (userId: string) => {
     try {
       await userService.deleteUser(userId);
-      
-      toast({
-        title: "Usuario eliminado",
-        description: "Se ha eliminado tu cuenta correctamente.",
-      });
-    
     } catch (err) {
       toast({
         title: "Error",

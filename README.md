@@ -169,27 +169,25 @@ Posible sistema de notificaciones para avisar a empleados sobre aprobaciones/rec
 
   ```bash
   cp .env.example .env
-  Levantar los servicios con Docker
+
   ```
 
 3. **Ejecuta el contenedor**
 
-   ```bash
+- Levantar los servicios con Docker
 
-   ```
+  ```bash
 
-- docker compose up --build
-
-  ```
+  docker compose up --build
 
   ```
 
 4. **Listo-Accede los links**
    Frontend: http://localhost:3000
 
-Backend (API Docs): http://localhost:8000/docs
+   Backend (API Docs): http://localhost:8000/docs
 
-Base de datos: PostgreSQL corriendo en localhost:5432
+   Base de datos: PostgreSQL corriendo en localhost:5432
 
 ## 👥 Usuarios de prueba (Seed Data)
 

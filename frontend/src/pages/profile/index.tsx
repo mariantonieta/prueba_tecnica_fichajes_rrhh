@@ -146,7 +146,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <Button className="w-full bg-black" onClick={handleSave}>
+        <Button className="w-full bg-black text-white" onClick={handleSave}>
           Guardar Cambios
         </Button>
       </div>
