@@ -51,9 +51,11 @@ def create_user(db: Session, user: UserCreate):
         year=datetime.now().year,
         leave_type=LeaveTypeEnum.VACATION,
         used_days=0,
-        remaining_days=0,  
+        remaining_days=getattr(user, "initial_vacation_days", 0),
+        monthly_hours=getattr(user, "initial_monthly_hours", 0), 
         weekly_hours=getattr(user, "initial_weekly_hours", 40),  
-        monthly_hours=0,  
+       
+        total_days=None,
         last_updated=datetime.utcnow()
     )
     db.add(balance)

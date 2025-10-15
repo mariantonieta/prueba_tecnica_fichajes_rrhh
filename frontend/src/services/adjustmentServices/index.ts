@@ -39,4 +39,8 @@ export const adjustmentService = {
         });
         return res.data;
     },
+      async listForUser(userId: string) {
+        const res = await axiosClient.get(`/time-adjustments/user/${userId}`);
+        return res.data; 
+    },
 };

@@ -1,53 +1,51 @@
-import { Clock, Calendar } from "lucide-react";
-import { UserOut } from "../../services/users/userTypes";
 import { TimeTrackingOut } from "../../services/timeTrackingServices";
 import { RecordsList } from "./record-list";
-import { LoadingState } from "./loading-state";
-import { EmptyState } from "./empty-state";
+import { Card, CardContent } from "../ui/card";
+import { Loader2 } from "lucide-react";
 
 interface PanelContentProps {
-  selectedEmployee: UserOut | null;
+  selectedEmployee: any;
   recordsLoading: boolean;
-  filteredRecords: TimeTrackingOut[];
-  filterType: "all" | "CHECK_IN" | "CHECK_OUT";
+  paginatedRecords: {
+    total: number;
+    count: number;
+    limit: number;
+    offset: number;
+    results: TimeTrackingOut[];
+  };
+  onPageChange: (newOffset: number) => void;
 }
 
 export function PanelContent({
   selectedEmployee,
   recordsLoading,
-  filteredRecords,
-  filterType,
+  paginatedRecords,
+  onPageChange,
 }: PanelContentProps) {
   if (!selectedEmployee) {
     return (
-      <EmptyState
-        icon={Clock}
-        title="Sin empleado seleccionado"
-        description="Selecciona un empleado de la lista para ver su historial de fichajes"
-      />
+      <Card className="h-64 flex items-center justify-center">
+        <CardContent className="text-center">
+          <p className="text-muted-foreground">
+            Selecciona un empleado para ver su historial
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   if (recordsLoading) {
-    return <LoadingState />;
-  }
-
-  if (filteredRecords.length === 0) {
-    const getEmptyMessage = () => {
-      if (filterType === "all") {
-        return "Este empleado no tiene fichajes registrados";
-      }
-      return `No hay fichajes de ${filterType === "CHECK_IN" ? "entrada" : "salida"}`;
-    };
-
     return (
-      <EmptyState
-        icon={Calendar}
-        title="No hay registros"
-        description={getEmptyMessage()}
-      />
+      <Card>
+        <CardContent className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Cargando registros...</span>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
-  return <RecordsList records={filteredRecords} />;
+  return <RecordsList data={paginatedRecords} onPageChange={onPageChange} />;
 }

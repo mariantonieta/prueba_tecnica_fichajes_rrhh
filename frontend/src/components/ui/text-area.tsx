@@ -1,75 +1,67 @@
-import React from 'react';
-import { Label } from './label';
+import * as React from "react"
+import { cn } from "@/lib/utils"
+import { Label } from "./label"
 
-interface TextAreaProps {
-  label?: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  rows?: number;
-  disabled?: boolean;
-  required?: boolean;
-  error?: string;
-  className?: string;
-  id?: string;
-  helperText?: string;
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string
+  error?: string
+  helperText?: string
 }
 
-export default function TextArea({
-  label,
-  value,
-  onChange,
-  placeholder = "",
-  rows = 4,
-  disabled = false,
-  required = false,
-  error,
-  className = "",
-  id,
-  helperText,
-}: TextAreaProps) {
-  const baseStyles = "w-full px-3 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all duration-200 resize-none font-sans";
-  const normalStyles = "border-gray-300 focus:border-blue-500 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400";
-  const errorStyles = "border-red-500 focus:border-red-500 focus:ring-red-500 bg-white text-gray-900 placeholder-gray-400";
-  const disabledStyles = "bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed placeholder-gray-400";
+const TextArea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({
+    className,
+    label,
+    error,
+    helperText,
+    id,
+    required,
+    disabled,
+    ...props
+  }, ref) => {
+    const generatedId = React.useId()
+    const textareaId = id || generatedId
 
-  const textareaStyles = `
-    ${baseStyles}
-    ${error ? errorStyles : normalStyles}
-    ${disabled ? disabledStyles : ""}
-    ${className}
-  `;
+    return (
+      <div className="space-y-2">
+        {label && (
+          <Label
+            htmlFor={textareaId}
+            className={cn(
+              error && "text-destructive"
+            )}
+          >
+            {label}
+            {required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+        )}
+        
+        <textarea
+          id={textareaId}
+          className={cn(
+            "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            error && "border-destructive focus-visible:ring-destructive",
+            className
+          )}
+          ref={ref}
+          required={required}
+          disabled={disabled}
+          {...props}
+        />
+        
+        {(error || helperText) && (
+          <p className={cn(
+            "text-sm font-medium",
+            error ? "text-destructive" : "text-muted-foreground"
+          )}>
+            {error || helperText}
+          </p>
+        )}
+      </div>
+    )
+  }
+)
+TextArea.displayName = "TextArea"
 
-  return (
-    <div className="space-y-2">
-      {label && (
-        <Label
-          htmlFor={id}
-          className={`${error ? 'text-red-700' : 'text-gray-700'}`}
-        >
-          {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
-        </Label>
-      )}
-      
-      <textarea
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        rows={rows}
-        disabled={disabled}
-        required={required}
-        className={textareaStyles}
-      />
-      
-      {(error || helperText) && (
-        <p className={`text-sm font-medium ${
-          error ? 'text-red-600' : 'text-gray-500'
-        }`}>
-          {error || helperText}
-        </p>
-      )}
-    </div>
-  );
-}
+export { TextArea }

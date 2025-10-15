@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from datetime import datetime
@@ -15,6 +15,7 @@ class TimeAjustmentCreate(TimeAdjustmentBase):
 class TimeAdjustmentOut(TimeAdjustmentBase):
     id: UUID
     user_id: UUID
+    full_name: Optional[str] = None
     time_record_id: Optional[UUID] = None 
     status: AdjustmentStatusEnum
     reviewed_by: Optional[UUID] = None

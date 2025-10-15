@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Header } from "../header";
 import { useAuth } from "../../context/AuthContext";
 import { Loader } from "../ui/loader";

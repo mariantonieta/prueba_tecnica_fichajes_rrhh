@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from uuid import UUID
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, timezone
 
 from app.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
-from app.schemas.time_tracking import TimeTrackingCreate, TimeTrackingOut, TimeTrackingSearchOut
-from app.crud import time_tracking
+from app.schemas.time_tracking import TimeTrackingCreate, TimeTrackingOut, TimeTrackingSearchOut, PaginatedTimeTrackingSearchOut
+from app.services import time_tracking
 from app.schemas.enum import UserRole
 from app.core.exceptions import forbidden, bad_request, DomainError
 
@@ -23,35 +23,39 @@ def create_time_record(
     new_record = time_tracking.create_time_record(db, user_id=current_user.id, record=record)
     return new_record
 
-@router.get("/", response_model=List[TimeTrackingOut])
+@router.get("/", response_model=PaginatedTimeTrackingSearchOut)
 def get_time_records(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    limit: int = Query(10, ge=1, le=100),  
+    offset: int = Query(0, ge=0)
 ):
-    return time_tracking.get_time_records_by_user(db, user_id=current_user.id)
+    return time_tracking.get_time_records_by_user_with_user_info(
+        db=db,
+        user_id=current_user.id,
+        limit=limit,
+        offset=offset
+    )
 
-
-@router.get("/user/{user_id}", response_model=List[TimeTrackingSearchOut])
+@router.get("/user/{user_id}",response_model=PaginatedTimeTrackingSearchOut)
 def get_time_records_by_user(
     user_id: UUID,
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     if current_user.role.name != UserRole.RRHH:
-        raise forbidden(
-            f"Acceso denegado. Se requiere rol {UserRole.RRHH}, pero tienes {current_user.role.name}"
-        )
+        raise forbidden("Solo RRHH puede acceder a esta informacion")
 
-    records = time_tracking.get_time_records_by_user_with_user_info(db, user_id=user_id)
-    if not records:
-        return []
-
-    return records
+    return time_tracking.get_time_records_by_user_with_user_info(db, user_id=user_id)
 
 @router.get("/search", response_model=List[TimeTrackingSearchOut])
 def search_time_records(
     user_id: Optional[UUID] = Query(None),
     user_full_name: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -59,9 +63,11 @@ def search_time_records(
         raise forbidden("Not authorized")
 
     return time_tracking.search_time_records_with_user_info(
-        db,
+        db=db,
         user_id=user_id,
-        user_full_name=user_full_name
+        user_full_name=user_full_name,
+        limit=limit,
+        offset=offset,
     )
 
 @router.get("/weekly")

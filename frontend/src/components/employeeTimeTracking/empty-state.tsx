@@ -1,4 +1,5 @@
 import { LucideIcon } from "lucide-react";
+import { Card, CardContent } from "../ui/card";
 
 interface EmptyStateProps {
   icon: LucideIcon;
@@ -6,12 +7,18 @@ interface EmptyStateProps {
   description: string;
 }
 
-export function EmptyState({ icon: Icon, title, description }: EmptyStateProps) {
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: EmptyStateProps) {
   return (
-    <div className="text-center py-12">
-      <Icon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-      <h3 className="text-lg font-semibold text-gray-600 mb-2">{title}</h3>
-      <p className="text-gray-500">{description}</p>
-    </div>
+    <Card className="border-dashed">
+      <CardContent className="text-center py-12 px-4">
+        <Icon className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">{title}</h3>
+        <p className="text-muted-foreground max-w-sm mx-auto">{description}</p>
+      </CardContent>
+    </Card>
   );
 }

@@ -1,11 +1,8 @@
-import React, { useState, useEffect, ReactNode } from "react";
+import { useState, useEffect, ReactNode } from "react";
 import { Fingerprint } from "lucide-react";
 import { Button } from "../ui/button";
 import { StatsCard } from "./stats-card";
-import {
-  TimeTrackingTable,
-  type TimeRecord,
-} from "../employeeTimeTracking/time-tracking-table";
+import { TimeTrackingTable } from "../employeeTimeTracking/time-tracking-table";
 import { useToast } from "../../hooks/use-toast";
 import { timeTrackingService } from "../../services/timeTrackingServices";
 
@@ -21,6 +18,8 @@ export interface DashboardBaseProps {
 export function DashboardBase({
   userName,
   userId,
+  currentUserId,
+  role,
   children,
 }: DashboardBaseProps) {
   const { toast } = useToast();
@@ -47,15 +46,12 @@ export function DashboardBase({
   };
 
   const fetchWeeklyHours = async () => {
-  const mondayUTC = getMondayOfWeek(new Date());
-
-  const mondayDate = mondayUTC.toISOString().split("T")[0];
-
-  const weekly = await timeTrackingService.getWeeklyHours(mondayDate);
-
-  setWeeklyHours(weekly.hours_worked);
-  setWeeklyLimit(weekly.weekly_limit);
-};
+    const mondayUTC = getMondayOfWeek(new Date());
+    const mondayDate = mondayUTC.toISOString().split("T")[0];
+    const weekly = await timeTrackingService.getWeeklyHours(mondayDate);
+    setWeeklyHours(weekly.hours_worked);
+    setWeeklyLimit(weekly.weekly_limit);
+  };
 
   const fetchMonthlyHours = async () => {
     const today = new Date();
@@ -68,15 +64,18 @@ export function DashboardBase({
   };
 
   const fetchUserRecords = async () => {
-    const allRecords = await timeTrackingService.list();
-    const userRecords = allRecords.filter((r) => r.user_id === userId);
+    const allRecords = await timeTrackingService.list(100, 0);
+    const safeUserId = role === "RRHH" ? userId : currentUserId;
+
     setTimestamps(
-      userRecords.map((r) => ({
-        id: r.id,
-        timestamp: r.timestamp,
-        record_type: r.record_type,
-        description: r.description || "",
-      }))
+      allRecords.results
+        .filter((r) => r.user_id === safeUserId)
+        .map((r) => ({
+          id: r.id,
+          timestamp: r.timestamp,
+          record_type: r.record_type,
+          description: r.description || "",
+        }))
     );
   };
 
@@ -94,26 +93,23 @@ export function DashboardBase({
 
   useEffect(() => {
     fetchData();
-  }, [userId, refreshTrigger]);
+  }, [userId, currentUserId, role, refreshTrigger]);
 
   const handleClock = async () => {
     try {
       const recordType = getNextRecordType();
       const now = new Date();
-
       await timeTrackingService.create({
         record_type: recordType,
         description: `Fichaje ${
           recordType === "CHECK_IN" ? "de entrada" : "de salida"
         } a las ${now.toLocaleTimeString()}`,
       });
-
       toast({
         title: "Fichaje registrado",
         description: `Tipo: ${recordType} - Hora: ${now.toLocaleTimeString()}`,
         variant: "default",
       });
-
       setRefreshTrigger((prev) => prev + 1);
     } catch (error: any) {
       toast({
@@ -125,30 +121,44 @@ export function DashboardBase({
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 mx-auto max-w-7xl px-6 py-8 space-y-12">
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-        <h1 className="text-3xl font-bold text-gray-900">
-          Bienvenido/a, {userName}
-        </h1>
+    <main className="min-h-screen bg-background mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+            Bienvenido/a, {userName}
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            {role === "RRHH"
+              ? "Panel de Recursos Humanos"
+              : "Panel de Empleado"}
+          </p>
+        </div>
+
         <Button
           size="lg"
-          className={`flex items-center gap-2 ${
+          className={`w-full sm:w-auto flex items-center justify-center gap-2 text-white ${
             getNextRecordType() === "CHECK_IN"
               ? "bg-green-600 hover:bg-green-700"
               : "bg-red-600 hover:bg-red-700"
           }`}
           onClick={handleClock}
         >
-          <Fingerprint className="h-5 w-5" />
-          {getNextActionLabel()}
+          <Fingerprint className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="text-sm sm:text-base">{getNextActionLabel()}</span>
         </Button>
       </div>
 
-      <section>
-        <h2 className="mb-6 text-2xl font-bold text-gray-900">
-          Resumen de Horas
-        </h2>
-        <div className="grid gap-6 md:grid-cols-2">
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+            Resumen de Horas
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Seguimiento de horas trabajadas
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-6">
           <StatsCard
             label="Horas trabajadas (Semana)"
             value={`${weeklyHours.toFixed(1)}h`}
@@ -162,17 +172,27 @@ export function DashboardBase({
         </div>
       </section>
 
-      <section className="mt-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
-          Fichajes Registrados
-        </h3>
-        <TimeTrackingTable
-          records={timestamps}
-          refreshTrigger={refreshTrigger}
-        />
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="text-lg sm:text-xl font-semibold tracking-tight">
+            Fichajes Registrados
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Historial de registros de tiempo
+          </p>
+        </div>
+
+        <div className="rounded-lg border bg-card shadow-sm">
+          <TimeTrackingTable
+            refreshTrigger={refreshTrigger}
+            userId={userId}
+            currentUserId={currentUserId}
+            role={role}
+          />
+        </div>
       </section>
 
-      {children && <section>{children}</section>}
+      {children && <section className="space-y-4">{children}</section>}
     </main>
   );
 }

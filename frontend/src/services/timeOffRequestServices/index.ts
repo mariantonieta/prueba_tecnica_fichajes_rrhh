@@ -17,8 +17,8 @@ export interface TimeOffRequestCreate {
 
 export interface TimeOffRequestOut {
   id: string;
-  user_id: string;
-  full_name?: string;
+  user_id: string; 
+  full_name: string; 
   start_date: string;
   end_date: string;
   days_requested: number;
@@ -53,5 +53,8 @@ export const updateTimeOffRequest = async (
 
 export const listTimeOffRequests = async () => {
   const res = await axiosClient.get<TimeOffRequestOut[]>(BASE_URL);
-  return res.data;
+  return res.data.map(r => ({
+    ...r,
+      full_name: r.full_name || "Sin nombre",
+  }));
 };

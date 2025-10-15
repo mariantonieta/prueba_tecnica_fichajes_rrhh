@@ -1,61 +1,154 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   adjustmentService,
   AdjustmentTypeEnum,
 } from "../../services/adjustmentServices";
-import { timeTrackingService } from "../../services/timeTrackingServices";
-import { useToast } from "../..//hooks/use-toast";
-
-export interface TimeRecord {
-  id: string;
-  timestamp: string;
-  record_type: "CHECK_IN" | "CHECK_OUT";
-  description: string;
-}
+import {
+  timeTrackingService,
+  TimeTrackingOut,
+} from "../../services/timeTrackingServices";
+import { useToast } from "../../hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
+import { Button } from "../ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "../ui/table";
+import { Badge } from "../ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "../ui/select";
+import { TextArea } from "../ui/text-area";
 
 export function TimeTrackingTable({
   refreshTrigger,
+  userId,
+  currentUserId,
+  role,
 }: {
   refreshTrigger?: number;
+  userId: string;
+  currentUserId: string;
+  role: "EMPLOYEE" | "RRHH";
 }) {
   const { toast } = useToast();
-  const [records, setRecords] = useState<TimeRecord[]>([]);
-  const [selectedRecord, setSelectedRecord] = useState<TimeRecord | null>(null);
+  const [records, setRecords] = useState<TimeTrackingOut[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [currentPage, setCurrentPage] = useState(0);
+  const limit = 10;
+
+  const [selectedRecord, setSelectedRecord] = useState<TimeTrackingOut | null>(
+    null
+  );
   const [newTimestamp, setNewTimestamp] = useState("");
   const [reason, setReason] = useState("");
   const [comment, setComment] = useState("");
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchRecords();
-  }, [refreshTrigger]);
+  const totalRecords = records.length;
+  const totalPages = Math.ceil(totalRecords / limit);
+
+  const safeUserId = role === "RRHH" ? userId : currentUserId;
 
   const fetchRecords = async () => {
     try {
-      const data = await timeTrackingService.list();
-      setRecords(
-        data.map((r: any) => ({
-          id: r.id,
-          timestamp: r.timestamp,
-          record_type: r.record_type,
-          description: r.description,
-        }))
+      setLoading(true);
+      const offset = currentPage * limit;
+
+      let timeRecords: TimeTrackingOut[] = [];
+
+      if (role === "RRHH") {
+        const res = await timeTrackingService.getEmployeeRecords(userId);
+        timeRecords = Array.isArray(res)
+          ? res
+          : res?.results || res?.data || [];
+      } else {
+        const paginated = await timeTrackingService.list(limit, offset);
+        const list = Array.isArray(paginated)
+          ? paginated
+          : paginated?.results || paginated?.data || [];
+        timeRecords = list.filter((r) => r.user_id === currentUserId);
+      }
+
+      let approvedAdjustments: TimeTrackingOut[] = [];
+
+      if (role === "RRHH") {
+        try {
+          const adjustments = await adjustmentService.listForUser(safeUserId);
+          approvedAdjustments = Array.isArray(adjustments)
+            ? adjustments
+                .filter((a) => a && a.status === "APPROVED")
+                .map((a) => ({
+                  id: a.id,
+                  timestamp: a.adjusted_timestamp,
+                  record_type: a.adjusted_type?.includes("ENTRY")
+                    ? "CHECK_IN"
+                    : "CHECK_OUT",
+                  description: `${a.reason || "Sin motivo"} (ajuste aprobado)`,
+                  user_id: safeUserId,
+                }))
+            : [];
+        } catch (err) {
+          console.warn(" Error obteniendo ajustes:", err);
+          approvedAdjustments = [];
+        }
+      }
+
+      const combinedRecords = [
+        ...(Array.isArray(timeRecords) ? timeRecords : []),
+        ...(Array.isArray(approvedAdjustments) ? approvedAdjustments : []),
+      ].sort(
+        (a, b) =>
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
+
+      setRecords(combinedRecords);
     } catch (error) {
-      console.error("Error fetching time records:", error);
+      console.error(" Error fetching time records:", error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los registros",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleOpenModal = (record: TimeRecord) => {
+  useEffect(() => {
+    fetchRecords();
+  }, [refreshTrigger, currentPage, userId, currentUserId, role]);
+
+  const handlePreviousPage = () =>
+    setCurrentPage((prev) => Math.max(prev - 1, 0));
+  const handleNextPage = () =>
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages - 1));
+
+  const handleOpenModal = (record: TimeTrackingOut) => {
     setSelectedRecord(record);
     setNewTimestamp(record.timestamp.slice(0, 16));
     setReason("");
     setComment("");
   };
 
-  const handleCloseModal = () => {
-    setSelectedRecord(null);
-  };
+  const handleCloseModal = () => setSelectedRecord(null);
 
   const handleSubmit = async () => {
     if (!selectedRecord) return;
@@ -67,20 +160,17 @@ export function TimeTrackingTable({
         adjusted_type: reason as AdjustmentTypeEnum,
         reason: comment || "Sin comentarios adicionales",
       });
-
       toast({
         title: "Solicitud enviada",
         description: "Solicitud de corrección enviada",
-        variant: "default",
       });
       handleCloseModal();
-
       await fetchRecords();
     } catch (error) {
       console.error(error);
       toast({
         title: "Error",
-        description: " Error al enviar la solicitud",
+        description: "Error al enviar la solicitud",
         variant: "destructive",
       });
     } finally {
@@ -88,126 +178,188 @@ export function TimeTrackingTable({
     }
   };
 
+  const currentRecords = records.slice(
+    currentPage * limit,
+    (currentPage + 1) * limit
+  );
+
   return (
-    <div className="relative overflow-x-auto shadow rounded-lg">
-      <table className="min-w-full text-sm text-left text-gray-700">
-        <thead className="bg-gray-100 text-gray-800 uppercase text-xs font-semibold">
-          <tr>
-            <th className="px-4 py-3">Fecha y Hora</th>
-            <th className="px-4 py-3">Tipo</th>
-            <th className="px-4 py-3">Descripción</th>
-            <th className="px-4 py-3 text-center">Acción</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((record) => (
-            <tr
-              key={record.id}
-              className="border-b hover:bg-gray-50 transition"
-            >
-              <td className="px-4 py-2">
-                {new Date(record.timestamp).toLocaleString()}
-              </td>
-              <td className="px-4 py-2">
-                {record.record_type === "CHECK_IN" ? "Entrada" : "Salida"}
-              </td>
-              <td className="px-4 py-2">{record.description}</td>
-              <td className="px-4 py-2 text-center">
-                <button
-                  onClick={() => handleOpenModal(record)}
-                  className="px-3 py-1 text-white bg-blue-600 hover:bg-blue-700 rounded-md transition"
-                >
-                  Solicitar corrección
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Card>
+      <CardHeader>
+        <CardTitle>Registros de Tiempo</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha y Hora</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Descripción</TableHead>
+                <TableHead className="text-center">Acción</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    Cargando registros...
+                  </TableCell>
+                </TableRow>
+              ) : currentRecords.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-center py-8 text-muted-foreground"
+                  >
+                    No hay registros disponibles
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentRecords.map((record) => (
+                  <TableRow key={record.id} className="hover:bg-muted/50">
+                    <TableCell className="font-medium">
+                      {new Date(record.timestamp).toLocaleString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          record.record_type === "CHECK_IN"
+                            ? "default"
+                            : "secondary"
+                        }
+                      >
+                        {record.record_type === "CHECK_IN"
+                          ? "Entrada"
+                          : "Salida"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {record.description || "Sin descripción"}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {record.description &&
+                        !record.description.includes("(ajuste aprobado)") && (
+                          <Button
+                            onClick={() => handleOpenModal(record)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Solicitar corrección
+                          </Button>
+                        )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
 
-      {selectedRecord && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg">
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Solicitar corrección de fichaje
-            </h2>
-            <p className="text-sm text-gray-600 mb-3">
-              Fichaje original:{" "}
-              <strong>
-                {selectedRecord.record_type === "CHECK_IN"
-                  ? "Entrada"
-                  : "Salida"}{" "}
-                — {new Date(selectedRecord.timestamp).toLocaleString()}
-              </strong>
-            </p>
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t">
+            <div className="text-sm text-muted-foreground">
+              Mostrando {Math.min(limit, currentRecords.length)} de{" "}
+              {totalRecords} registros
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 0}
+              >
+                Anterior
+              </Button>
+              <span className="text-sm text-muted-foreground px-3">
+                Página {currentPage + 1} de {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextPage}
+                disabled={currentPage >= totalPages - 1}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        )}
 
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Nueva fecha y hora
-                </label>
-                <input
+        <Dialog open={!!selectedRecord} onOpenChange={handleCloseModal}>
+          <DialogContent className="sm:max-w-md bg-white z-50 overflow-visible">
+            <DialogHeader>
+              <DialogTitle>Solicitar corrección de fichaje</DialogTitle>
+              <DialogDescription>
+                Fichaje original:{" "}
+                <strong>
+                  {selectedRecord?.record_type === "CHECK_IN"
+                    ? "Entrada"
+                    : "Salida"}{" "}
+                  —
+                  {selectedRecord &&
+                    new Date(selectedRecord.timestamp).toLocaleString()}
+                </strong>
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="timestamp">Nueva fecha y hora</Label>
+                <Input
+                  id="timestamp"
                   type="datetime-local"
                   value={newTimestamp}
                   onChange={(e) => setNewTimestamp(e.target.value)}
-                  className="w-full mt-1 border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Tipo de corrección
-                </label>
-                <select
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  className="w-full mt-1 border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                >
-                  <option value="">Selecciona un tipo...</option>
-                  {Object.values(AdjustmentTypeEnum).map((type) => (
-                    <option key={type} value={type}>
-                      {type.replace("_", " ")}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <Label htmlFor="reason">Tipo de corrección</Label>
+                <Select value={reason} onValueChange={setReason}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecciona un tipo..." />
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    sideOffset={4}
+                    className="bg-white border rounded-md shadow-lg z-50"
+                  >
+                    {Object.values(AdjustmentTypeEnum).map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {type.replace("_", " ")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Comentario adicional (opcional)
-                </label>
-                <textarea
+              <div className="space-y-2">
+                <Label htmlFor="comment">Comentario adicional (opcional)</Label>
+                <TextArea
+                  id="comment"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  rows={3}
                   placeholder="Explica el motivo o detalles adicionales..."
-                  className="w-full mt-1 border rounded-md px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                  rows={3}
                 />
               </div>
             </div>
 
-            <div className="flex justify-end space-x-3 mt-5">
-              <button
-                onClick={handleCloseModal}
-                className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-100"
-              >
+            <div className="flex justify-end space-x-2 mt-6">
+              <Button variant="outline" onClick={handleCloseModal}>
                 Cancelar
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading || !reason}
-                className={`px-4 py-2 rounded-md text-white ${
-                  loading
-                    ? "bg-blue-300 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
+              </Button>
+              <Button onClick={handleSubmit} disabled={loading || !reason}>
                 {loading ? "Enviando..." : "Enviar solicitud"}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
-    </div>
+          </DialogContent>
+        </Dialog>
+      </CardContent>
+    </Card>
   );
 }

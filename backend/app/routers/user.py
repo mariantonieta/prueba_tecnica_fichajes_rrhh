@@ -5,7 +5,7 @@ from app.database import get_db
 from app.core.deps import get_current_user, require_rrhh
 from app.models.user import User
 from app.schemas.user import UserOut, UserUpdate, UserCreate
-from app.crud import user as crud_user
+from app.services import user as crud_user
 from app.core.exceptions import not_found, bad_request
 from app.schemas.enum import UserRole
 

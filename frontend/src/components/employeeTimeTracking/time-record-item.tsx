@@ -1,61 +1,56 @@
-import React from "react";
-import { Clock } from "lucide-react";
 import { TimeTrackingOut } from "../../services/timeTrackingServices";
 import { Badge } from "../ui/badge";
+import { Card, CardContent } from "../ui/card";
+import { ArrowRightCircle, ArrowLeftCircle } from "lucide-react";
 
-interface TimeRecordItemProps {
+interface RecordItemProps {
   record: TimeTrackingOut;
 }
 
-export function TimeRecordItem({ record }: TimeRecordItemProps) {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-      weekday: "long",
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString("es-ES", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+export function RecordItem({ record }: RecordItemProps) {
+  const isCheckIn = record.record_type === "CHECK_IN";
 
   return (
-    <div className="flex items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-      <div
-        className={`h-10 w-10 rounded-full flex items-center justify-center ${
-          record.record_type === "CHECK_IN"
-            ? "bg-green-100 text-green-600"
-            : "bg-red-100 text-red-600"
-        }`}
-      >
-        <Clock className="h-5 w-5" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-gray-900">
-          {record.record_type === "CHECK_IN" ? "Check-In" : "Check-Out"}
-        </p>
-        <p className="text-sm text-gray-500">{formatDate(record.timestamp)}</p>
-        {record.description && (
-          <p className="text-sm text-gray-600 mt-1">{record.description}</p>
-        )}
-      </div>
-      <div className="text-right">
-        <Badge
-          variant={
-            record.record_type === "CHECK_IN" ? "default" : "destructive"
-          }
-        >
-          {record.record_type === "CHECK_IN" ? "Entrada" : "Salida"}
-        </Badge>
-        <p className="text-sm font-medium text-gray-900 mt-1">
-          {formatTime(record.timestamp)}
-        </p>
-      </div>
-    </div>
+    <Card>
+      <CardContent className="p-4">
+       <div className="flex flex-col items-center gap-2">
+  <div
+    className={`flex items-center justify-center w-10 h-10 rounded-full ${
+      isCheckIn ? "bg-green-100" : "bg-red-100"
+    }`}
+  >
+    {isCheckIn ? (
+      <ArrowRightCircle className="h-5 w-5 text-green-600" />
+    ) : (
+      <ArrowLeftCircle className="h-5 w-5 text-red-600" />
+    )}
+  </div>
+
+  <Badge
+    variant={isCheckIn ? "default" : "secondary"}
+    className="w-20 justify-center mt-1"
+  >
+    {isCheckIn ? "Entrada" : "Salida"}
+  </Badge>
+</div>
+
+            <div className="flex-1">
+              <span className="text-sm font-medium text-foreground block">
+                {new Date(record.timestamp).toLocaleTimeString()}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {new Date(record.timestamp).toLocaleDateString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="text-right flex-1">
+            <p className="text-sm text-muted-foreground">
+              {record.description || "Registro de asistencia"}
+            </p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

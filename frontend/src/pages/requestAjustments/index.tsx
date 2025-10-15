@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { RequestsTable } from "../../components/requestTable"
+import { RequestsTable } from "../../components/requestTable";
 import {
   adjustmentService,
   AdjustmentStatusEnum,
@@ -9,6 +9,7 @@ import { useToast } from "../../hooks/use-toast";
 import { Loader } from "../../components/ui/loader";
 import { UserOut } from "../../services/users/userTypes";
 import { Column } from "../../components/ui/table";
+import { ReviewModal } from "../../components/modal-comment";
 
 interface Request {
   id: string;
@@ -17,27 +18,27 @@ interface Request {
   status: "approved" | "pending" | "rejected";
   statusLabel: string;
   userId: string;
-  user_id?: string; 
+  user_id?: string;
+  full_name: string;
+  review_comment: string;
 }
 
 const adjustmentColumns: Column<Request>[] = [
-  {
-    header: "Tipo",
-    accessor: "type",
-  },
-  {
-    header: "Fecha",
-    accessor: "date",
-  },
+  { header: "Tipo", accessor: "type" },
+  { header: "Fecha", accessor: "date" },
   {
     header: "Estado",
     accessor: "status",
     render: (value, row) => (
-      <span className={`px-2 py-1 rounded-full text-xs ${
-        row.status === "approved" ? "bg-green-100 text-green-800" :
-        row.status === "rejected" ? "bg-red-100 text-red-800" :
-        "bg-yellow-100 text-yellow-800"
-      }`}>
+      <span
+        className={`px-2 py-1 rounded-full text-xs ${
+          row.status === "approved"
+            ? "bg-green-100 text-green-800"
+            : row.status === "rejected"
+            ? "bg-red-100 text-red-800"
+            : "bg-yellow-100 text-yellow-800"
+        }`}
+      >
         {row.statusLabel}
       </span>
     ),
@@ -50,6 +51,25 @@ export default function RequestAdjustments() {
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [selectedRequest, setSelectedRequest] = useState<Request | null>(null);
+  const [modalAction, setModalAction] = useState<"approve" | "reject" | null>(
+    null
+  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = (request: Request, action: "approve" | "reject") => {
+    setSelectedRequest(request);
+    setModalAction(action);
+    setIsModalOpen(true);
+  };
+
+  const handleConfirm = (status: "approved" | "rejected", comment?: string) => {
+    if (selectedRequest) {
+      handleStatusChange(selectedRequest.id, status, comment);
+    }
+    setIsModalOpen(false);
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -57,25 +77,32 @@ export default function RequestAdjustments() {
         setUser(userData);
 
         const allAdjustments = await adjustmentService.getAll();
-        
-        const safeAdjustments = Array.isArray(allAdjustments) ? allAdjustments : [];
-        
+        const safeAdjustments = Array.isArray(allAdjustments)
+          ? allAdjustments
+          : [];
+
         const mappedRequests: Request[] = safeAdjustments.map((adj: any) => ({
           id: adj.id || "",
           type: adj.adjusted_type?.replace("_", " ") || "Ajuste",
-          date: adj.adjusted_timestamp 
-            ? new Date(adj.adjusted_timestamp).toLocaleString() 
+          date: adj.adjusted_timestamp
+            ? new Date(adj.adjusted_timestamp).toLocaleString()
             : "Fecha no disponible",
-          status: (adj.status?.toLowerCase() as "approved" | "pending" | "rejected") || "pending",
+          status:
+            (adj.status?.toLowerCase() as
+              | "approved"
+              | "pending"
+              | "rejected") || "pending",
           statusLabel: adj.status?.replace("_", " ") || "Pendiente",
           userId: adj.user_id || "",
-          user_id: adj.user_id || "", 
+          user_id: adj.user_id || "",
+          full_name: adj.full_name || "Desconocido",
+          review_comment: adj.review_comment,
         }));
-        
+
         setRequests(mappedRequests);
       } catch (error: any) {
         console.error("Error cargando datos:", error);
-        setRequests([]); 
+        setRequests([]);
         toast({
           title: "Error al cargar solicitudes",
           description:
@@ -87,19 +114,21 @@ export default function RequestAdjustments() {
       }
     };
     fetchData();
-  }, [toast]);
+  }, []);
 
   const handleStatusChange = async (
     id: string,
-    newStatus: AdjustmentStatusEnum
+    newStatus: AdjustmentStatusEnum,
+    comment?: string
   ) => {
     try {
-        const statusForBackend = newStatus.toUpperCase() as AdjustmentStatusEnum;
+      const finalComment =
+        comment?.trim() || `Revisión por ${newStatus.toUpperCase()}`;
 
       await adjustmentService.updateStatus(
         id,
-        statusForBackend,
-        `Revisión por ${statusForBackend}`
+        newStatus.toUpperCase() as AdjustmentStatusEnum,
+        finalComment
       );
 
       setRequests((prev) =>
@@ -112,6 +141,7 @@ export default function RequestAdjustments() {
                   | "pending"
                   | "rejected",
                 statusLabel: newStatus.replace("_", " "),
+                review_comment: finalComment,
               }
             : req
         )
@@ -136,8 +166,12 @@ export default function RequestAdjustments() {
   const hasRequests = safeRequests.length > 0;
 
   const totalRequests = safeRequests.length;
-  const pendingRequests = safeRequests.filter((r) => r.status === "pending").length;
-  const resolvedRequests = safeRequests.filter((r) => r.status !== "pending").length;
+  const pendingRequests = safeRequests.filter(
+    (r) => r.status === "pending"
+  ).length;
+  const resolvedRequests = safeRequests.filter(
+    (r) => r.status !== "pending"
+  ).length;
 
   if (loading) {
     return (
@@ -178,29 +212,25 @@ export default function RequestAdjustments() {
                 value: totalRequests,
                 color: "blue",
               },
-              {
-                label: "Pendientes",
-                value: pendingRequests,
-                color: "yellow",
-              },
-              {
-                label: "Resueltas",
-                value: resolvedRequests,
-                color: "green",
-              },
+              { label: "Pendientes", value: pendingRequests, color: "yellow" },
+              { label: "Resueltas", value: resolvedRequests, color: "green" },
             ].map((stat) => (
               <div
                 key={stat.label}
-                className={`bg-white p-4 rounded-lg shadow border hover:shadow-lg transition`}
+                className="bg-white p-4 rounded-lg shadow border hover:shadow-lg transition"
               >
                 <h3 className="text-lg font-semibold text-gray-900">
                   {stat.label}
                 </h3>
-                <p className={`text-2xl font-bold ${
-                  stat.color === "blue" ? "text-blue-600" :
-                  stat.color === "yellow" ? "text-yellow-600" :
-                  "text-green-600"
-                }`}>
+                <p
+                  className={`text-2xl font-bold ${
+                    stat.color === "blue"
+                      ? "text-blue-600"
+                      : stat.color === "yellow"
+                      ? "text-yellow-600"
+                      : "text-green-600"
+                  }`}
+                >
                   {stat.value}
                 </p>
               </div>
@@ -216,7 +246,14 @@ export default function RequestAdjustments() {
               currentUserId={user.id}
               columns={adjustmentColumns}
               onStatusChange={
-                user.role === "RRHH" ? handleStatusChange : undefined
+                user.role === "RRHH"
+                  ? (id, status) => {
+                      const req = safeRequests.find((r) => r.id === id);
+                      if (!req) return;
+                      if (status === "approved") openModal(req, "approve");
+                      else if (status === "rejected") openModal(req, "reject");
+                    }
+                  : undefined
               }
             />
           ) : (
@@ -225,6 +262,16 @@ export default function RequestAdjustments() {
             </div>
           )}
         </div>
+
+        {selectedRequest && modalAction && (
+          <ReviewModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onConfirm={handleConfirm}
+            request={selectedRequest}
+            action={modalAction}
+          />
+        )}
 
         {!hasRequests && (
           <div className="text-center py-12">

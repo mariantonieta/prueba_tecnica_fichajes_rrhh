@@ -4,12 +4,16 @@ export interface LeaveBalance {
   leave_type: string;
   remaining_days: number;
   year: number;
+  user_name: string;
+  total_days: number;
+  used_days: number;
 }
 
 export interface LeaveBalanceCreate {
   user_id: string;
   leave_type: string;
-  remaining_days: number;
+  remaining_days?: number;
+  total_days?: number;
   year: number;
 }
 

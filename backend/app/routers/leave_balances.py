@@ -5,7 +5,7 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
-from app.crud import leave_balance as crud
+from app.services import leave_balance as crud
 from app.schemas.leave_balance import LeaveBalanceRead, LeaveBalanceCreate, LeaveBalanceUpdate
 from app.core.deps import get_current_user
 from app.schemas.enum import UserRole

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordBearer
 
 from app.database import get_db
-from app.crud.user import get_user_by_id
+from app.services.user import get_user_by_id
 from app.core.config import settings
 from app.core.exceptions import unauthorized, forbidden
 from app.schemas.enum import UserRole

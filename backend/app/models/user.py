@@ -2,8 +2,6 @@ from sqlalchemy import Column, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.models.entity_abstract import EntityAbstract
-from app.models.role import Role
-from app.models.time_adjustment import TimeAdjustment
 
 class User(EntityAbstract):
     __tablename__ = "users"

@@ -8,6 +8,7 @@ from app.models.leave_balance import LeaveBalance
 from app.core.exceptions import bad_request
 
 FULL_TIME_WEEKLY_HOURS = 40.0
+#lo pongo por 2.5 ya que aqui en España por mes trabajado son 2.5 dias de vacaciones
 VACATION_DAYS_PER_FULLTIME_MONTH = 2.5
 
 
@@ -79,7 +80,7 @@ def get_or_create_user_year_balance(
         return balance
 
     weekly_hours = _effective_weekly_hours(default_weekly_hours)
-    balance_days = _accrual_days_for_month(weekly_hours)  # 2.5 si 40h
+    balance_days = _accrual_days_for_month(weekly_hours) 
 
     new_balance = LeaveBalance(
         user_id=user_id,
@@ -89,13 +90,13 @@ def get_or_create_user_year_balance(
         remaining_days=balance_days,
         weekly_hours=weekly_hours,
         monthly_hours=weekly_hours * 4.33,
+        total_days=balance_days, 
         last_updated=datetime.utcnow(),
     )
     db.add(new_balance)
     db.commit()
     db.refresh(new_balance)
     return new_balance
-
 
 def accrue_monthly_for_user(
     db: Session,
@@ -113,11 +114,21 @@ def accrue_monthly_for_user(
 
     days = Decimal(str(_accrual_days_for_month(balance.weekly_hours)))
     balance.remaining_days += days
+    balance.total_days += days  
     balance.last_updated = datetime.utcnow()
+
+    if balance.total_days is None:
+        balance.total_days = days
+    else:
+        balance.total_days += days
 
     db.commit()
     db.refresh(balance)
     return balance
+
+
+
+
 def deduct_days(db: Session, user_id: UUID, leave_type: str, days_taken: float):
     year = datetime.utcnow().year
 

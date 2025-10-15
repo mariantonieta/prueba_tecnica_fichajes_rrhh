@@ -6,20 +6,35 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { useToast } from "../../hooks/use-toast";
 import { userService } from "../../services/users/userService";
-import { useNavigate } from "react-router-dom";
-import { Loader } from "../ui/loader";
-import { Card, CardHeader, CardContent, CardFooter } from  "../ui/card";
+import { Card, CardHeader, CardContent, CardFooter } from "../ui/card";
+import { UserCheck } from "lucide-react";
 
 const schema = z
   .object({
-    username: z.string().min(3, "El nombre de usuario debe tener al menos 3 caracteres"),
+    username: z
+      .string()
+      .min(3, "El nombre de usuario debe tener al menos 3 caracteres"),
     email: z.string().email("Correo electrónico inválido"),
-    full_name: z.string().min(2, "El nombre completo debe tener al menos 2 caracteres"),
-    password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
+    full_name: z
+      .string()
+      .min(2, "El nombre completo debe tener al menos 2 caracteres"),
+    password: z
+      .string()
+      .min(6, "La contraseña debe tener al menos 6 caracteres"),
     confirm_password: z.string().min(6, "Confirma tu contraseña"),
-    initial_vacation_days: z.number().optional(),
-    initial_weekly_hours: z.number().optional(),
-    initial_monthly_hours: z.number().optional(),
+    initial_vacation_days: z
+      .string()
+      .regex(/^\d*$/, "Solo se permiten números")
+      .optional(),
+    initial_weekly_hours: z
+      .string()
+      .nonempty("Las horas semanales son obligatorias")
+      .regex(/^\d+$/, "Solo se permiten números"),
+
+    initial_monthly_hours: z
+      .string()
+      .regex(/^\d*$/, "Solo se permiten números")
+      .optional(),
   })
   .refine((data) => data.password === data.confirm_password, {
     path: ["confirm_password"],
@@ -32,28 +47,32 @@ function FormField({
   id,
   label,
   error,
+  icon: Icon,
   children,
 }: {
   id: string;
   label: string;
   error?: string;
+  icon?: React.ComponentType<any>;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor={id} className="font-medium text-sm text-gray-700">
+      <Label
+        htmlFor={id}
+        className="font-medium text-sm flex items-center gap-2"
+      >
+        {Icon && <Icon className="h-4 w-4" />}
         {label}
       </Label>
       {children}
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </div>
   );
 }
 
-export function RegisterForm() {
+export function RegisterForm({ onSuccess }: { onSuccess?: () => void }) {
   const { toast } = useToast();
-  const navigate = useNavigate();
- 
 
   const {
     register,
@@ -68,19 +87,21 @@ export function RegisterForm() {
       await userService.createUser({
         ...data,
         role: "EMPLOYEE",
+        initial_vacation_days: Number(data.initial_vacation_days) || 0,
+        initial_weekly_hours: Number(data.initial_weekly_hours) || 0,
+        initial_monthly_hours: Number(data.initial_monthly_hours) || 0,
       });
 
       toast({
-        title: "Usuario creado correctamente",
-        description: "Redirigiendo al historial de fichajes...",
+        title: "Usuario creado",
+        description: "El empleado ha sido registrado exitosamente",
       });
+      window.location.reload();
 
-      setTimeout(() => {
-        navigate("/employee-time-tracking");
-      }, 1500);
+      if (onSuccess) onSuccess();
     } catch (error: any) {
       toast({
-        title: " Error al crear el usuario",
+        title: "Error al crear el usuario",
         description: error?.response?.data?.detail || "Inténtalo nuevamente.",
         variant: "destructive",
       });
@@ -88,85 +109,130 @@ export function RegisterForm() {
   };
 
   return (
-    <Card className="w-full shadow-lg border border-gray-200 rounded-2xl">
-      <CardHeader>
-        <h2 className="text-2xl font-semibold text-center text-gray-800">
-          Crear cuenta de empleado
-        </h2>
-        <p className="text-sm text-gray-500 text-center">
-          Ingresa los datos del nuevo empleado
+    <Card className="w-full">
+      <CardHeader className="text-center pb-4">
+        <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-3">
+          <UserCheck className="h-6 w-6 text-primary" />
+        </div>
+        <h2 className="text-xl font-semibold">Nuevo Empleado</h2>
+        <p className="text-sm text-muted-foreground">
+          Completa la información del nuevo colaborador
         </p>
       </CardHeader>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <CardContent className="space-y-5">
-          <FormField id="username" label="Nombre de usuario" error={errors.username?.message}>
-            <Input placeholder="johndoe" {...register("username")} />
-          </FormField>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              id="username"
+              label="Usuario"
+              error={errors.username?.message}
+            >
+              <Input placeholder="johndoe" {...register("username")} />
+            </FormField>
 
-          <FormField id="full_name" label="Nombre completo" error={errors.full_name?.message}>
-            <Input placeholder="John Doe" {...register("full_name")} />
-          </FormField>
-
-          <FormField id="email" label="Correo electrónico" error={errors.email?.message}>
-            <Input type="email" placeholder="usuario@empresa.com" {...register("email")} />
-          </FormField>
-
-          <FormField id="password" label="Contraseña" error={errors.password?.message}>
-            <Input type="password" placeholder="••••••••" {...register("password")} />
-          </FormField>
+            <FormField
+              id="full_name"
+              label="Nombre completo"
+              error={errors.full_name?.message}
+            >
+              <Input placeholder="John Doe" {...register("full_name")} />
+            </FormField>
+          </div>
 
           <FormField
-            id="confirm_password"
-            label="Confirmar contraseña"
-            error={errors.confirm_password?.message}
+            id="email"
+            label="Correo electrónico"
+            error={errors.email?.message}
           >
-            <Input type="password" placeholder="••••••••" {...register("confirm_password")} />
+            <Input
+              type="email"
+              placeholder="usuario@empresa.com"
+              {...register("email")}
+            />
           </FormField>
 
-          <div className="grid grid-cols-3 gap-4 pt-3 border-t">
-            <FormField id="initial_vacation_days" label="Vacaciones iniciales">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              id="password"
+              label="Contraseña"
+              error={errors.password?.message}
+            >
               <Input
-                type="number"
-                min={0}
-                {...register("initial_vacation_days", { valueAsNumber: true })}
+                type="password"
+                placeholder="••••••••"
+                {...register("password")}
               />
             </FormField>
 
-            <FormField id="initial_weekly_hours" label="Horas semanales">
+            <FormField
+              id="confirm_password"
+              label="Confirmar contraseña"
+              error={errors.confirm_password?.message}
+            >
               <Input
-                type="number"
-                min={0}
-                {...register("initial_weekly_hours", { valueAsNumber: true })}
-              />
-            </FormField>
-
-            <FormField id="initial_monthly_hours" label="Horas mensuales">
-              <Input
-                type="number"
-                min={0}
-                {...register("initial_monthly_hours", { valueAsNumber: true })}
+                type="password"
+                placeholder="••••••••"
+                {...register("confirm_password")}
               />
             </FormField>
           </div>
+
+          <div className="pt-4 border-t">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <FormField id="initial_vacation_days" label="Días de vacaciones">
+                <Input
+                  type="text"
+                  placeholder="0"
+                  {...register("initial_vacation_days")}
+                  onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      ""
+                    );
+                  }}
+                />
+              </FormField>
+
+              <FormField
+                id="initial_weekly_hours"
+                label="Horas semanales"
+                error={errors.initial_weekly_hours?.message}
+              >
+                <Input
+                  type="text"
+                  placeholder="0"
+                  {...register("initial_weekly_hours")}
+                />
+              </FormField>
+
+              <FormField id="initial_monthly_hours" label="Horas mensuales">
+                <Input
+                  type="text"
+                  placeholder="0"
+                  {...register("initial_monthly_hours")}
+                  onInput={(e: React.FormEvent<HTMLInputElement>) => {
+                    e.currentTarget.value = e.currentTarget.value.replace(
+                      /\D/g,
+                      ""
+                    );
+                  }}
+                />
+              </FormField>
+            </div>
+          </div>
         </CardContent>
 
-        <CardFooter>
+        <CardFooter className="pt-2">
           <Button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
             disabled={isSubmitting}
+            className="w-full"
+            variant="black"
           >
-            {isSubmitting ? (
-              <>
-                <Loader/>
-                Creando usuario...
-              </>
-            ) : (
-              "Crear usuario"
-            )}
+            {isSubmitting ? "Creando..." : "Crear empleado"}
           </Button>
-      </CardFooter>
+        </CardFooter>
       </form>
     </Card>
   );

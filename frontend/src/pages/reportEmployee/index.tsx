@@ -1,110 +1,119 @@
 import React, { useEffect, useState } from "react";
+import { useAuth } from "../../context/AuthContext";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "../../components/ui/card";
 import {
   getMyBalance,
   listAllBalances,
-  accrueMonthly,
-  updateBalance,
-
 } from "../../services/leaveBalanceServices";
 import { LeaveBalance } from "../../services/leaveBalanceServices/leaveBalanceTypes";
-import { useAuth } from "../../context/AuthContext"; 
+import { LeaveBalanceTable } from "../../components/leaveBalance/leave-balance-table";
+import { Skeleton } from "../../components/ui/skeleton";
 
 const ReportEmployee: React.FC = () => {
-  const { user } = useAuth(); 
+  const { user, role, isLoading: authLoading } = useAuth();
+
   const [balances, setBalances] = useState<LeaveBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (authLoading || !user || !role) return;
+
     const fetchBalances = async () => {
+      setLoading(true);
+      setError("");
       try {
-        setLoading(true);
-        if (user.role === "RRHH") {
-          const data = await listAllBalances();
-          setBalances(data);
+        //   console.log(" Fetching balances for user:", user);
+
+        let data: LeaveBalance[] = [];
+
+        if (role === "RRHH") {
+          data = await listAllBalances();
         } else {
-          const data = await getMyBalance();
-          setBalances([data]);
+          const myBalance = await getMyBalance();
+          console.log("📊 Balance recibido para usuario actual:", myBalance);
+
+          if (myBalance) {
+            data = [myBalance];
+          }
         }
+
+        //  console.log("Balances finales a mostrar:", data);
+        // console.log("Número de balances:", data.length);
+        setBalances(data);
       } catch (err: any) {
-        setError(err.message);
+        //   console.error(" Error fetching balances:", err);
+        setError(err?.message || "Error al cargar balances");
       } finally {
         setLoading(false);
       }
     };
+
     fetchBalances();
-  }, [user]);
+  }, [authLoading, user, role]);
 
-  const handleAccrue = async (userId: string) => {
-    try {
-      const updated = await accrueMonthly(userId);
-      setBalances((prev) =>
-        prev.map((b) => (b.user_id === userId ? updated : b))
-      );
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
+  if (authLoading) {
+    return (
+      <div className="p-6 space-y-2">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+      </div>
+    );
+  }
 
-  const handleUpdate = async (balanceId: string) => {
-    const newDays = prompt("Introduce los días restantes:");
-    if (!newDays) return;
+  if (!user) {
+    return (
+      <div className="p-4 text-red-500 font-medium">
+        No hay usuario autenticado
+      </div>
+    );
+  }
 
-    try {
-      const updated = await updateBalance(balanceId, {
-        remaining_days: parseFloat(newDays),
-      });
-      setBalances((prev) =>
-        prev.map((b) => (b.id === balanceId ? updated : b))
-      );
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
+  if (loading) {
+    return (
+      <div className="p-6 space-y-2">
+        <Skeleton className="h-8 w-1/3" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-full" />
+      </div>
+    );
+  }
 
-  if (loading) return <div className="p-4">Cargando...</div>;
-  if (error) return <div className="p-4 text-red-500">Error: {error}</div>;
+  if (error) {
+    return <div className="p-4 text-red-500 font-medium">Error: {error}</div>;
+  }
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Informes de Vacaciones</h1>
-      <table className="min-w-full bg-white border">
-        <thead>
-          <tr className="bg-gray-100">
-            <th className="py-2 px-4 border">Usuario</th>
-            <th className="py-2 px-4 border">Tipo</th>
-            <th className="py-2 px-4 border">Días restantes</th>
-            <th className="py-2 px-4 border">Año</th>
-            {user.role === "RRHH" && <th className="py-2 px-4 border">Acciones</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {balances.map((b) => (
-            <tr key={b.id} className="text-center">
-              <td className="py-2 px-4 border">{b.user_name}</td>
-              <td className="py-2 px-4 border">{b.leave_type}</td>
-              <td className="py-2 px-4 border">{b.remaining_days.toFixed(2)}</td>
-              <td className="py-2 px-4 border">{b.year}</td>
-              {user.role === "RRHH" && (
-                <td className="py-2 px-4 border space-x-2">
-                  <button
-                    className="bg-green-500 text-white px-2 py-1 rounded"
-                    onClick={() => handleAccrue(b.user_id)}
-                  >
-                    Acumular
-                  </button>
-                  <button
-                    className="bg-blue-500 text-white px-2 py-1 rounded"
-                    onClick={() => handleUpdate(b.id)}
-                  >
-                    Actualizar
-                  </button>
-                </td>
-              )}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <h1 className="text-2xl font-bold mb-6">Informes de Vacaciones</h1>
+      <Card className="shadow-lg">
+        <CardHeader className="bg-blue-50 border-b">
+          <CardTitle className="text-xl">Balance de Vacaciones</CardTitle>
+          <CardDescription className="text-gray-600">
+            {role === "RRHH"
+              ? `Mostrando ${balances.length} empleados`
+              : `Balance de ${user.full_name}`}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-0">
+          {balances.length > 0 ? (
+            <LeaveBalanceTable balances={balances} isRRHH={role === "RRHH"} />
+          ) : (
+            <div className="text-center text-gray-500 p-8">
+              No hay balances disponibles para mostrar
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

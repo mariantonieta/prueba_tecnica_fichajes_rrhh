@@ -2,7 +2,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./pages/auth/login";
-import RegisterPage from "./pages/auth/register";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Layout } from "./components/layout";
 import EmployeeDashboard from "./pages/dashboard/employeeDasboard";
@@ -39,7 +38,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <AuthProvider>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/users/create" element={<RegisterPage />} />
+          
 
             <Route
               path="/home"

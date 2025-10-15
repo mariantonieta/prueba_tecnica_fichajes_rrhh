@@ -21,6 +21,7 @@ class LeaveBalance(EntityAbstract):
     weekly_hours = Column(Float, nullable=False)
     monthly_hours = Column(Float, nullable=False)
     last_updated = Column(DateTime, nullable=False, default=datetime.utcnow)
+    total_days = Column(Numeric(7, 2), nullable=True)
 
     user = relationship("User", back_populates="leave_balances")
 

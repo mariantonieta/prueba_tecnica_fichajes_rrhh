@@ -20,6 +20,13 @@ function getAuthHeaders() {
     return { Authorization: `Bearer ${token}` };
 }
 
+export interface PaginatedResponse<T> {
+  total: number;
+  count: number;
+  limit: number;
+  offset: number;
+  results: T[];
+}
 export const timeTrackingService = {
     async create(data: TimeTrackingCreate): Promise<TimeTrackingOut> {
         const res = await axiosClient.post("/time-tracking/", data, {
@@ -28,12 +35,13 @@ export const timeTrackingService = {
         return res.data;
     },
 
-    async list(): Promise<TimeTrackingOut[]> {
-        const res = await axiosClient.get("/time-tracking/", {
-            headers: getAuthHeaders(),
-        });
-        return res.data;
-    },
+     async list(limit: number = 10, offset: number = 0): Promise<PaginatedResponse<TimeTrackingOut>> {
+    const res = await axiosClient.get("/time-tracking/", {
+      headers: getAuthHeaders(),
+      params: { limit, offset },
+    });
+    return res.data;
+  },
 
     async getWeeklyHours(weekStart: string): Promise<{ hours_worked: number; weekly_limit: number; over_limit: number }> {
         const res = await axiosClient.get("/time-tracking/weekly", {

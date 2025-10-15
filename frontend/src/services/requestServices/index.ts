@@ -13,7 +13,7 @@ export interface RequestOut {
     reviewed_by?: string;
     review_comment?: string;
     userId: string;
-    employee: string;
+    full_name: string;
 }
 
 export interface RequestCreate {
@@ -31,7 +31,7 @@ interface BackendRequest {
     end_date: string;
     status: LeaveStatus;
     user_id: string;
-    employee_name: string;
+    full_name: string;
     reason?: string;
     reviewed_by?: string;
     review_comment?: string;
@@ -51,7 +51,7 @@ export const requestService = {
             reviewed_by: r.reviewed_by,
             review_comment: r.review_comment,
             userId: r.user_id,
-            employee: r.employee_name,
+            full_name: r.full_name
         }));
     },
 
@@ -68,7 +68,7 @@ export const requestService = {
             reviewed_by: r.reviewed_by,
             review_comment: r.review_comment,
             userId: r.user_id,
-            employee: r.employee_name,
+            full_name: r.full_name
         };
     },
 
@@ -88,7 +88,7 @@ export const requestService = {
             reviewed_by: r.reviewed_by,
             review_comment: r.review_comment,
             userId: r.user_id,
-            employee: r.employee_name,
+            full_name: r.full_name
         };
     },
 };

@@ -1,92 +1,121 @@
-import React, { useState, useEffect } from "react";
-import { User, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Button } from "../ui/button";
-import { UserOut, UserUpdate } from "../../services/users/userTypes";
+import type { UserOut, UserUpdate } from "../../services/users/userTypes";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../hooks/use-toast";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "../ui/dialog";
+import { Card, CardContent } from "../ui/card";
+import { UserAvatar } from "../ui/avatar";
+import { Badge } from "../ui/badge";
+import { Loader2 } from "lucide-react";
+
+const schema = z.object({
+  full_name: z.string().min(2, "El nombre completo es obligatorio"),
+  username: z.string().min(3, "El username es obligatorio"),
+  email: z.string().email("Correo inválido"),
+  initial_vacation_days: z
+    .string()
+    .regex(/^\d*\.?\d*$/, "Solo se permiten números o decimales")
+    .optional(),
+  initial_weekly_hours: z
+    .string()
+    .regex(/^\d*\.?\d*$/, "Solo se permiten números o decimales")
+    .optional(),
+  initial_monthly_hours: z
+    .string()
+    .regex(/^\d*\.?\d*$/, "Solo se permiten números o decimales")
+    .optional(),
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface EmployeeProfileModalProps {
+  open: boolean;
   employee: UserOut;
   onClose: () => void;
   isRRHH: boolean;
   onUpdate: (updatedEmployee: UserOut) => void;
 }
 
-export function EmployeeProfileModal({ 
-  employee, 
-  onClose, 
-  isRRHH, 
-  onUpdate 
+export function EmployeeProfileModal({
+  open,
+  employee,
+  onClose,
+  isRRHH,
+  onUpdate,
 }: EmployeeProfileModalProps) {
   const { user: currentUser, updateUser, deleteUser } = useAuth();
   const { toast } = useToast();
-
-  const [form, setForm] = useState<UserUpdate>({
-    full_name: employee.full_name || "",
-    email: employee.email,
-    username: employee.username,
-    initial_vacation_days: employee.initial_vacation_days,
-    initial_weekly_hours: employee.initial_weekly_hours,
-    initial_monthly_hours: employee.initial_monthly_hours,
-  });
-
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
-    setForm({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isDirty },
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
       full_name: employee.full_name || "",
-      email: employee.email,
       username: employee.username,
-      initial_vacation_days: employee.initial_vacation_days,
-      initial_weekly_hours: employee.initial_weekly_hours,
-      initial_monthly_hours: employee.initial_monthly_hours,
-    });
-  }, [employee]);
+      email: employee.email,
+      initial_vacation_days: employee.initial_vacation_days?.toString() || "",
+      initial_weekly_hours: employee.initial_weekly_hours?.toString() || "",
+      initial_monthly_hours: employee.initial_monthly_hours?.toString() || "",
+    },
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    const numericFields = ["initial_vacation_days", "initial_weekly_hours", "initial_monthly_hours"];
-    setForm({
-      ...form,
-      [name]: numericFields.includes(name) ? Number(value) : value,
+  useEffect(() => {
+    reset({
+      full_name: employee.full_name || "",
+      username: employee.username,
+      email: employee.email,
+      initial_vacation_days: employee.initial_vacation_days?.toString() || "",
+      initial_weekly_hours: employee.initial_weekly_hours?.toString() || "",
+      initial_monthly_hours: employee.initial_monthly_hours?.toString() || "",
     });
-  };
+  }, [employee, reset]);
 
-  const handleSave = async () => {
-    if (!employee) return;
-    
+  const onSubmit = async (data: FormData) => {
     setIsSaving(true);
-    
     try {
-      const data: UserUpdate = {};
-      if (form.full_name?.trim()) data.full_name = form.full_name.trim();
-      if (form.username?.trim()) data.username = form.username.trim();
-      if (form.email?.trim()) data.email = form.email.trim();
-      data.initial_vacation_days = form.initial_vacation_days;
-      data.initial_weekly_hours = form.initial_weekly_hours;
-      data.initial_monthly_hours = form.initial_monthly_hours;
+      const payload: UserUpdate = {
+        full_name: data.full_name.trim(),
+        username: data.username.trim(),
+        email: data.email.trim(),
+        initial_vacation_days: data.initial_vacation_days
+          ? Number(data.initial_vacation_days)
+          : employee.initial_vacation_days,
+        initial_weekly_hours: data.initial_weekly_hours
+          ? Number(data.initial_weekly_hours)
+          : employee.initial_weekly_hours,
+        initial_monthly_hours: data.initial_monthly_hours
+          ? Number(data.initial_monthly_hours)
+          : employee.initial_monthly_hours,
+      };
 
-      const updatedUser = await updateUser(employee.id, data);
-      
+      const updatedUser = await updateUser(employee.id, payload);
+
       if (updatedUser) {
         onUpdate(updatedUser);
-        
-        onClose();
-        
         toast({
           title: "Cambios guardados",
           description: "Los datos del empleado se actualizaron correctamente",
-          variant: "success",
         });
-          setTimeout(() => {
-    window.location.reload();
-  }, 100);
-
+        onClose();
       }
     } catch (err: any) {
-      console.error("Error al guardar:", err);
       toast({
         title: "Error al guardar",
         description: err.message || "No se pudieron guardar los cambios",
@@ -95,198 +124,224 @@ export function EmployeeProfileModal({
     } finally {
       setIsSaving(false);
     }
-  };const handleDelete = async () => {
-  if (!employee || !isRRHH) return;
-  
-  if (currentUser?.id === employee.id) {
-    toast({
-      title: "Acción no permitida",
-      description: "No puedes eliminar tu propio usuario.",
-      variant: "destructive",
-    });
-    return;
-  }
+  };
 
-  const confirmDelete = window.confirm(
-    "¿Seguro que quieres eliminar este usuario? Esta acción no se puede deshacer."
-  );
-
-  if (!confirmDelete) return;
-
-  try {
-    await deleteUser(employee.id);
-    onUpdate({ ...employee, is_active: false });
-
+  const handleClose = () => {
     onClose();
+  };
 
-    toast({
-      title: "Usuario eliminado",
-      description: "El usuario ha sido eliminado correctamente",
-      variant: "success",
-    });
+  const handleDelete = async () => {
+    if (!employee || !isRRHH) return;
+    if (currentUser?.id === employee.id) {
+      toast({
+        title: "Acción no permitida",
+        description: "No puedes eliminar tu propio usuario.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const confirmDelete = window.confirm(
+      "¿Seguro que quieres eliminar este usuario? Esta acción no se puede deshacer."
+    );
+    if (!confirmDelete) return;
 
-    setTimeout(() => {
-      window.location.reload();
-    }, 100);
-  } catch (err: any) {
-    console.error("Error al eliminar:", err);
-    toast({
-      title: "Error al eliminar",
-      description: err.message || "No se pudo eliminar el usuario",
-      variant: "destructive",
-    });
-  }
-};
+    try {
+      await deleteUser(employee.id);
+      onUpdate({ ...employee, is_active: false });
+      toast({
+        title: "Usuario eliminado",
+        description: "El usuario ha sido eliminado correctamente",
+      });
+      onClose();
+    } catch (err: any) {
+      toast({
+        title: "Error al eliminar",
+        description: err.message || "No se pudo eliminar el usuario",
+        variant: "destructive",
+      });
+    }
+  };
 
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-  <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl mx-auto relative p-8 overflow-y-auto max-h-[90vh]">
-    <Button
-      className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 transition"
-      onClick={onClose}
-      disabled={isSaving}
-    >
-      <X className="h-6 w-6" />
-    </Button>
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar
+              src={employee.avatar}
+              alt={employee.full_name || employee.username}
+              fallback={getInitials(employee.full_name || employee.username)}
+            />
 
-    <h2 className="text-3xl font-bold mb-6 text-center text-gray-800">
-      Editar Perfil - {employee.full_name || employee.username}
-    </h2>
+            <div className="space-y-1">
+              <DialogTitle className="text-xl">
+                {employee.full_name || employee.username}
+              </DialogTitle>
+              <DialogDescription>
+                Editar información del empleado
+              </DialogDescription>
+            </div>
+          </div>
+        </DialogHeader>
 
-    <div className="flex flex-col md:flex-row gap-6">
-      <div className="flex-shrink-0 flex items-center justify-center w-28 h-28 rounded-full bg-blue-100">
-        <User className="h-10 w-10 text-blue-600" />
-      </div>
+        <Card>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Nombre completo</Label>
+                  <Input
+                    id="full_name"
+                    {...register("full_name")}
+                    disabled={isSaving}
+                    placeholder="Nombre completo"
+                  />
+                  {errors.full_name && (
+                    <p className="text-sm text-destructive">
+                      {errors.full_name.message}
+                    </p>
+                  )}
+                </div>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex flex-col">
-          <Label className="text-sm font-medium text-gray-700">Nombre completo</Label>
-          <Input
-            name="full_name"
-            value={form.full_name || ""}
-            onChange={handleChange}
-            placeholder="Nombre completo"
-            className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-            disabled={isSaving}
-          />
-        </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    {...register("username")}
+                    disabled={isSaving}
+                    placeholder="Username"
+                  />
+                  {errors.username && (
+                    <p className="text-sm text-destructive">
+                      {errors.username.message}
+                    </p>
+                  )}
+                </div>
 
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700">Username</label>
-          <Input
-            name="username"
-            value={form.username || ""}
-            onChange={handleChange}
-            placeholder="Username"
-            className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-            disabled={isSaving}
-          />
-        </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    {...register("email")}
+                    type="email"
+                    disabled={isSaving}
+                    placeholder="Email"
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">
+                      {errors.email.message}
+                    </p>
+                  )}
+                </div>
 
-        <div className="flex flex-col">
-          <label className="text-sm font-medium text-gray-700">Email</label>
-          <Input
-            name="email"
-            type="email"
-            value={form.email || ""}
-            onChange={handleChange}
-            placeholder="Email"
-            className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-            disabled={isSaving}
-          />
-        </div>
+                <div className="space-y-2">
+                  <Label>Rol</Label>
+                  <Input
+                    value={employee.role}
+                    disabled
+                    className="bg-muted text-muted-foreground"
+                  />
+                </div>
 
-      
+                <div className="space-y-2">
+                  <Label>Días de vacaciones</Label>
+                  <Input
+                    {...register("initial_vacation_days")}
+                    disabled={isSaving}
+                    placeholder="0"
+                  />
+                </div>
 
-        <div className="flex flex-col">
-          <Label className="text-sm font-medium text-gray-700">Horas semanales</Label>
-          <Input
-            name="initial_weekly_hours"
-            type="number"
-            value={form.initial_weekly_hours || 0}
-            onChange={handleChange}
-            placeholder="Horas semanales"
-            className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-            disabled={isSaving}
-          />
-        </div>
-        <div className="flex flex-col">
-  <Label className="text-sm font-medium text-gray-700">Horas mensuales</Label>
-  <Input
-    name="initial_monthly_hours"
-    type="number"
-    value={form.initial_monthly_hours || 0}
-    onChange={handleChange}
-    placeholder="Horas mensuales"
-    className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    disabled={isSaving}
-  />
-</div>
+                <div className="space-y-2">
+                  <Label>Horas semanales</Label>
+                  <Input
+                    {...register("initial_weekly_hours")}
+                    disabled={isSaving}
+                    placeholder="0"
+                  />
+                </div>
 
-<div className="flex flex-col">
-  <Label className="text-sm font-medium text-gray-700">Días de vacaciones</Label>
-  <Input
-    name="initial_vacation_days"
-    type="number"
-    value={form.initial_vacation_days || 0}
-    onChange={handleChange}
-    placeholder="Días de vacaciones"
-    className="w-full px-4 py-2 rounded-xl border border-gray-300 mt-1 focus:ring-2 focus:ring-blue-300 focus:outline-none"
-    disabled={isSaving}
-  />
-</div>
+                <div className="space-y-2">
+                  <Label>Horas mensuales</Label>
+                  <Input
+                    {...register("initial_monthly_hours")}
+                    disabled={isSaving}
+                    placeholder="0"
+                  />
+                </div>
 
-      
-        <div className="flex flex-col">
-          <Label className="text-sm font-medium text-gray-700">Rol</Label>
-          <Input
-            name="role"
-            value={employee.role}
-            disabled
-            className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-100 cursor-not-allowed mt-1"
-          />
-        </div>
+                <div className="space-y-2">
+                  <Label>Estado</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={employee.is_active ? "Activo" : "Inactivo"}
+                      disabled
+                      className="bg-muted text-muted-foreground"
+                    />
+                    <Badge
+                      variant={employee.is_active ? "default" : "secondary"}
+                      className="shrink-0"
+                    >
+                      {employee.is_active ? "Activo" : "Inactivo"}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
 
-        <div className="flex flex-col">
-          <Label className="text-sm font-medium text-gray-700">Estado</Label>
-          <Input
-            name="is_active"
-            value={employee.is_active ? "Activo" : "Inactivo"}
-            disabled
-            className="w-full px-4 py-2 rounded-xl border border-gray-200 bg-gray-100 cursor-not-allowed mt-1"
-          />
-        </div>
-      </div>
-    </div>
-
-    <div className="flex flex-col md:flex-row justify-end gap-3 mt-8">
-      {isRRHH && currentUser?.id !== employee.id && (
-        <Button
-          onClick={handleDelete}
-          disabled={isSaving}
-          className="bg-red-600 hover:bg-red-700 text-white"
-        >
-          {isSaving ? "Eliminando..." : "Eliminar Usuario"}
-        </Button>
-      )}
-      <Button
-        onClick={handleSave}
-        disabled={isSaving}
-        className="bg-blue-600 hover:bg-blue-700 text-white"
-      >
-        {isSaving ? "Guardando..." : "Guardar Cambios"}
-      </Button>
-      <Button
-        onClick={onClose}
-        disabled={isSaving}
-        className="bg-gray-300 hover:bg-gray-400 text-gray-800"
-      >
-        Cancelar
-      </Button>
-    </div>
-  </div>
-</div>
-
+              <div className="flex flex-col sm:flex-row gap-2 justify-end pt-4 border-t">
+                <div className="flex gap-2 order-2 sm:order-1">
+                  {isRRHH && currentUser?.id !== employee.id && (
+                    <Button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={isSaving}
+                      variant="outline"
+                      className="text-destructive border-destructive/20 hover:bg-destructive/10 hover:text-destructive bg-transparent"
+                    >
+                      {isSaving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Eliminar"
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={onClose}
+                    disabled={isSaving}
+                    variant="outline"
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+                <Button
+                  type="submit"
+                  disabled={isSaving || !isDirty}
+                  className="order-1 sm:order-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Guardando...
+                    </>
+                  ) : (
+                    "Guardar cambios"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </DialogContent>
+    </Dialog>
   );
 }

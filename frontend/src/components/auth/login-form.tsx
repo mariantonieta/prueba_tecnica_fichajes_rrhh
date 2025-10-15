@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,7 +38,7 @@ function FormField({
     <div className="space-y-2">
       <Label htmlFor={id}>{label}</Label>
       {children}
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }
@@ -57,18 +57,13 @@ export function LoginForm() {
   const onSubmit = async (data: FormData) => {
     try {
       const result = await authService.login(data);
-        console.log("Login response:", result);
+      console.log("Login response:", result);
       if (!result?.access_token)
         throw new Error("No access token received from backend");
 
       login(result.access_token);
 
       const decoded: DecodedToken = jwtDecode(result.access_token);
-
-      toast({
-        title: "Welcome!",
-        description: `Logged in as "${decoded.role}"`,
-      });
 
       navigate("/home");
     } catch (error) {
@@ -110,18 +105,14 @@ export function LoginForm() {
         />
       </FormField>
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <Button
+        type="submit"
+        className="w-full"
+        variant={"black"}
+        disabled={isSubmitting}
+      >
         {isSubmitting ? "Signing in..." : "Sign In"}
       </Button>
-
-      <div className="text-center text-sm text-gray-500">
-        <p>
-          No tienes cuenta?{" "}
-          <Link to="/register" className="font-medium text-gray-700 underline">
-            Regístrate
-          </Link>
-        </p>
-      </div>
     </form>
   );
 }

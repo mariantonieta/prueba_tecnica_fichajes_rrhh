@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { DashboardBase } from "../../components/dashboard";
 import { userService } from "../../services/users/userService";
 import { useToast } from "../../hooks/use-toast";

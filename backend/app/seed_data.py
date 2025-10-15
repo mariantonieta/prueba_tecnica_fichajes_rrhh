@@ -10,6 +10,7 @@ from app.models.leave_balance import LeaveBalance
 from app.models.time_adjustment import TimeAdjustment
 from passlib.hash import bcrypt
 from datetime import datetime, date
+from decimal import Decimal
 from app.schemas.enum import (
     UserRole,
     RecordTypeEnum,
@@ -18,6 +19,19 @@ from app.schemas.enum import (
     AdjustmentStatusEnum,
     AdjustmentTypeEnum
 )
+
+FULL_TIME_WEEKLY_HOURS = 40.0
+VACATION_DAYS_PER_FULLTIME_MONTH = 2.5
+
+def _effective_weekly_hours(weekly_hours: float) -> float:
+    if not weekly_hours or weekly_hours <= 0:
+        return FULL_TIME_WEEKLY_HOURS
+    return float(weekly_hours)
+
+def _initial_vacation_days(weekly_hours: float) -> float:
+    hours = _effective_weekly_hours(weekly_hours)
+    ratio = hours / FULL_TIME_WEEKLY_HOURS
+    return VACATION_DAYS_PER_FULLTIME_MONTH * ratio  
 
 def seed_data():
     db: Session = SessionLocal()
@@ -29,16 +43,13 @@ def seed_data():
 
         print("Insertando datos iniciales...")
 
-        # Roles
         rrhh_role = Role(id=uuid.uuid4(), name=UserRole.RRHH)
         employee_role = Role(id=uuid.uuid4(), name=UserRole.EMPLOYEE)
         db.add_all([rrhh_role, employee_role])
         db.commit()
 
-        # Contraseña base
         hashed_pw = bcrypt.hash("123456")
 
-        # Usuarios
         rrhh_user = User(
             username="nerea_rrhh",
             email="nerea@empresa.com",
@@ -78,38 +89,28 @@ def seed_data():
         db.add_all([rrhh_user, mariantonieta, luisa, juan])
         db.commit()
 
-        balances = [
-            LeaveBalance(
-                user_id=mariantonieta.id,
-                year=datetime.now().year,
-                leave_type=LeaveTypeEnum.VACATION,
-                used_days=0,
-                remaining_days=0,
-                weekly_hours=40,
-                monthly_hours=0,
-                last_updated=datetime.utcnow()
-            ),
-            LeaveBalance(
-                user_id=luisa.id,
-                year=datetime.now().year,
-                leave_type=LeaveTypeEnum.VACATION,
-                used_days=0,
-                remaining_days=0,
-                weekly_hours=30,
-                monthly_hours=0,
-                last_updated=datetime.utcnow()
-            ),
-            LeaveBalance(
-                user_id=juan.id,
-                year=datetime.now().year,
-                leave_type=LeaveTypeEnum.VACATION,
-                used_days=0,
-                remaining_days=0,
-                weekly_hours=40,
-                monthly_hours=0,
-                last_updated=datetime.utcnow()
-            ),
+        user_balances = [
+            (mariantonieta.id, 40), 
+            (luisa.id, 40),          
+            (juan.id, 40),
         ]
+
+        balances = []
+        for user_id, weekly_hours in user_balances:
+            init_days = Decimal(str(_initial_vacation_days(weekly_hours)))
+            balance = LeaveBalance(
+                user_id=user_id,
+                year=datetime.now().year,
+                leave_type=LeaveTypeEnum.VACATION,
+                used_days=0,
+                remaining_days=init_days,
+                weekly_hours=weekly_hours,
+                monthly_hours=weekly_hours * 4.33,
+                total_days=init_days,  
+                last_updated=datetime.utcnow()
+            )
+            balances.append(balance)
+
         db.add_all(balances)
         db.commit()
 
@@ -126,7 +127,6 @@ def seed_data():
         ])
         db.commit()
 
-        # Solicitudes de ausencia
         db.add_all([
             TimeOffRequest(
                 user_id=mariantonieta.id,

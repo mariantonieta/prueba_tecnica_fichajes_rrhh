@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { Button } from "../../components/ui/button";
-import { UserUpdate } from "../../services/users/userTypes";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "../../hooks/use-toast";
+import { UserUpdate } from "../../services/users/userTypes";
+import { Button } from "../../components/ui/button";
+import { Input } from "../../components/ui/input";
+import { Label } from "../../components/ui/label";
 
 export default function ProfilePage() {
-  const { user, role, updateUser, deleteUser } = useAuth();
+  const { user, role, updateUser } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -21,7 +23,7 @@ export default function ProfilePage() {
       setForm({
         full_name: user.full_name || "",
         email: user.email,
-        username: user.username || "",
+        username: user.username,
       });
     }
   }, [user]);
@@ -30,139 +32,123 @@ export default function ProfilePage() {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
   };
+
   const handleSave = async () => {
     if (!user) return;
 
-     const data: UserUpdate = {} as UserUpdate;
-  if (form.full_name.trim()) data.full_name = form.full_name.trim();
-  if (form.username.trim()) data.username = form.username.trim();
-  if (form.email.trim()) data.email = form.email.trim();
+    const data: UserUpdate = {} as UserUpdate;
+    if (form.full_name.trim()) data.full_name = form.full_name.trim();
+    if (form.username.trim()) data.username = form.username.trim();
+    if (form.email.trim()) data.email = form.email.trim();
+
     try {
-    const updatedUser = await updateUser(user.id, data); 
-    toast({
-      title: "Usuario actualizado",
-      description: "Tus cambios se han guardado correctamente",
-      variant: "success",
-    });
-  } catch (err) {
-    toast({
-      title: "Error",
-      description:
-        err instanceof Error ? err.message : "No se pudo guardar los cambios",
-      variant: "destructive",
-    });
-  }
-};
-  const handleBack = () => {
-    navigate(-1);
+      await updateUser(user.id, data);
+      toast({
+        title: "Usuario actualizado",
+        description: "Tus cambios se han guardado correctamente",
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description:
+          err instanceof Error ? err.message : "No se pudo guardar los cambios",
+        variant: "destructive",
+      });
+    }
   };
 
+  const handleBack = () => navigate(-1);
+
   if (!user)
-    return <p className="text-center mt-20 text-gray-500">Cargando...</p>;
+    return (
+      <p className="text-center mt-20 text-muted-foreground">Cargando...</p>
+    );
 
   return (
-    <main className="min-h-screen  flex justify-center py-12">
-      <div className="bg-white p-10 rounded-2xl g w-full max-w-md space-y-8 mx-4">
-        <h1 className="text-3xl font-bold text-gray-800 text-center mb-6">
-          Mi Perfil
-        </h1>
+    <main className="min-h-screen flex justify-center py-12 bg-background">
+      <div className="bg-card p-10 rounded-2xl w-full max-w-md space-y-8">
+        <h1 className="text-3xl font-bold text-center">Mi Perfil</h1>
+
         <Button
+          variant="secondary"
           onClick={handleBack}
-          className="bg-gray-300 hover:bg-gray-400 text-gray-800 mb-4"
+          className="mb-4 w-full"
         >
           Atrás
         </Button>
 
         <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Nombre
-            </label>
-            <input
-              type="text"
+          <div className="space-y-1">
+            <Label htmlFor="full_name">Nombre</Label>
+            <Input
+              id="full_name"
               name="full_name"
               value={form.full_name}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-2 shadow-sm focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              placeholder="Nombre completo"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Username
-            </label>
-            <input
-              type="text"
+          <div className="space-y-1">
+            <Label htmlFor="username">Username</Label>
+            <Input
+              id="username"
               name="username"
               value={form.username}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-2 shadow-sm focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              placeholder="Usuario"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
+          <div className="space-y-1">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
               name="email"
+              type="email"
               value={form.email}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-xl border border-gray-300 bg-white px-4 py-2 shadow-sm focus:ring-blue-400 focus:border-blue-400 outline-none transition"
+              placeholder="Correo electrónico"
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Rol
-            </label>
-            <input
-              type="text"
-              name="role"
+          <div className="space-y-1">
+            <Label htmlFor="role">Rol</Label>
+            <Input
+              id="role"
               value={
                 typeof user.role === "string"
                   ? user.role
                   : user.role?.name || ""
               }
-              disabled={role === "EMPLOYEE"}
               readOnly
-              className="mt-1 block w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 shadow-sm cursor-not-allowed"
+              disabled
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-600 mb-1">
-              Fecha de creación
-            </label>
-            <input
-              type="text"
-             value={
-              user.create_date
-                ? new Date(user.create_date).toLocaleDateString("es-ES", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })
-                : ""
-            }
-
+          <div className="space-y-1">
+            <Label htmlFor="create_date">Fecha de creación</Label>
+            <Input
+              id="create_date"
+              value={
+                user.create_date
+                  ? new Date(user.create_date).toLocaleDateString("es-ES", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })
+                  : ""
+              }
               readOnly
-              className="mt-1 block w-full rounded-xl border border-gray-200 bg-gray-100 px-4 py-2 shadow-sm cursor-not-allowed"
+              disabled
             />
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4 mt-6">
-          <Button
-            className="bg-blue-600 hover:bg-blue-700 text-white w-full md:w-auto"
-            onClick={handleSave}
-          >
-            Guardar Cambios
-          </Button>
-
-         
-        </div>
+        <Button className="w-full bg-black" onClick={handleSave}>
+          Guardar Cambios
+        </Button>
       </div>
     </main>
   );

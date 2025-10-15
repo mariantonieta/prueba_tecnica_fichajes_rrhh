@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import Optional
 from uuid import UUID
 from datetime import date
@@ -19,7 +19,7 @@ class TimeOffRequestOut(TimeOffRequestBase):
     days_requested: float   
     reviewed_by: Optional[UUID] = None
     review_comment: Optional[str] = None
-    user_full_name: Optional[str] = None 
+    full_name: Optional[str] = None 
     
     class Config:
         from_attributes = True

@@ -7,15 +7,15 @@ from app.models.time_off_request import TimeOffRequest
 from app.models.user import User
 from app.schemas.time_off_request import TimeOffRequestUpdate
 from app.core.exceptions import bad_request
-from app.crud.leave_balance import deduct_days
+from app.services.leave_balance import deduct_days
 
 
 def _attach_user_full_name(request_obj: TimeOffRequest, db: Session) -> None:
     if request_obj.user:
-        request_obj.user_full_name = request_obj.user.full_name
+        request_obj.full_name = request_obj.user.full_name
     else:
         user = db.query(User).filter(User.id == request_obj.user_id).first()
-        request_obj.user_full_name = user.full_name if user else None
+        request_obj.full_name = user.full_name if user else None
 
 
 def get_request(db: Session, request_id: UUID) -> Optional[TimeOffRequest]:
@@ -41,28 +41,39 @@ def create_request(db: Session, data: dict) -> TimeOffRequest:
 
     _attach_user_full_name(new_request, db)
     return new_request
-
-
-def update_request(db: Session, request_obj: TimeOffRequest, data: TimeOffRequestUpdate) -> TimeOffRequest:
+def update_request(
+    db: Session,
+    request_obj: TimeOffRequest,
+    data: TimeOffRequestUpdate
+) -> TimeOffRequest:
     previous_status = request_obj.status
 
     for key, value in data.dict(exclude_unset=True).items():
         setattr(request_obj, key, value)
 
+    try:
+        if previous_status != "APPROVED" and getattr(request_obj, "status", None) == "APPROVED":
+            deduct_days(
+                db=db,
+                user_id=request_obj.user_id,
+                leave_type=getattr(request_obj, "leave_type", "VACATION"),
+                days_taken=request_obj.days_requested
+            )
+    except Exception:
+        request_obj.status = "REJECTED"
+        request_obj.review_comment = "No puedes irte de vacaciones, no tienes días disponibles"
+
+
     db.commit()
     db.refresh(request_obj)
 
-    if previous_status != "APPROVED" and request_obj.status == "APPROVED":
-        leave_type = getattr(request_obj, "leave_type", "VACATION")
-        try:
-            deduct_days(db=db, user_id=request_obj.user_id, leave_type=leave_type, days_taken=request_obj.days_requested)
-        except Exception as e:
-            db.rollback()
-            raise bad_request(f"Error al descontar días: {str(e)}")
+    if request_obj.user:
+        request_obj.full_name = request_obj.user.full_name
+    else:
+        user = db.query(User).filter(User.id == request_obj.user_id).first()
+        request_obj.full_name = user.full_name if user else None
 
-    _attach_user_full_name(request_obj, db)
     return request_obj
-
 
 def list_requests(db: Session):
     requests = db.query(TimeOffRequest).all()

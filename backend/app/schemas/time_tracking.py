@@ -1,7 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel
+from typing import Optional, List
 from datetime import datetime
-from enum import Enum
 from uuid import UUID
 
 class TimeTrackingBase(BaseModel):
@@ -36,3 +35,11 @@ class TimeTrackingSearchOut(BaseModel):
 
     class Config:
         from_attributes = True
+        
+        
+class PaginatedTimeTrackingSearchOut(BaseModel):
+    total: int
+    count: int
+    limit: int
+    offset: int
+    results: List[TimeTrackingSearchOut]

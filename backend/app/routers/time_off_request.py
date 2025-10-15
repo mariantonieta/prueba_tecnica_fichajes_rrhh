@@ -5,7 +5,7 @@ from uuid import UUID
 from app.database import get_db
 from app.core.deps import get_current_user
 from app.schemas.time_off_request import TimeOffRequestCreate, TimeOffRequestOut, TimeOffRequestUpdate
-from app.crud import time_off_request as crud
+from app.services import time_off_request as crud
 from app.models import User
 from app.core.exceptions import forbidden, not_found
 from app.schemas.enum import UserRole

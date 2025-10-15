@@ -1,4 +1,3 @@
-import React from "react";
 import { Card, CardContent } from "../ui/card";
 
 interface StatsCardProps {
@@ -9,13 +8,17 @@ interface StatsCardProps {
 
 export function StatsCard({ label, value, maxValue }: StatsCardProps) {
   return (
-    <Card className="p-6">
-      <CardContent className="p-0">
-        <p className="text-sm text-gray-500 mb-2">{label}</p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-4xl font-bold text-blue-600">{value}</span>
+    <Card className="p-4 sm:p-6 shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-0 space-y-2 sm:space-y-3">
+        <p className="text-xs sm:text-sm text-muted-foreground font-medium">
+          {label}
+        </p>
+        <div className="flex items-baseline gap-1 sm:gap-2 flex-wrap">
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold text-primary">
+            {value}
+          </span>
           {maxValue && (
-            <span className="text-2xl font-normal text-gray-500">
+            <span className="text-lg sm:text-xl lg:text-2xl font-normal text-muted-foreground">
               / {maxValue}
             </span>
           )}
