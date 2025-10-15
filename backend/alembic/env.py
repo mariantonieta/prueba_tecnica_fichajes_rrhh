@@ -17,7 +17,7 @@ if not db_url:
     POSTGRES_USER = os.environ.get("POSTGRES_USER")
     POSTGRES_PASSWORD = os.environ.get("POSTGRES_PASSWORD")
     POSTGRES_DB = os.environ.get("POSTGRES_DB")
-    POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "localhost")
+    POSTGRES_HOST = os.environ.get("POSTGRES_HOST", "db")
     POSTGRES_PORT = os.environ.get("POSTGRES_PORT", "5432")
     db_url = f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
